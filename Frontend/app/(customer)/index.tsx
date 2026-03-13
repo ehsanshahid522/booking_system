@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Dimensions,
+  TextInput, Dimensions, ActivityIndicator
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-import { BARBERS, SERVICES } from '@/constants/MockData';
+import apiClient from '@/api/client';
 import BarberCard from '@/components/BarberCard';
 
 const { width } = Dimensions.get('window');
@@ -15,13 +15,51 @@ const CATEGORIES = ['All', 'Hair', 'Beard', 'Skin', 'Wellness', 'Combo'];
 export default function CustomerHome() {
   const router = useRouter();
   const { user } = useAuth();
-  const [selectedCat, setSelectedCat] = React.useState('All');
+  const [selectedCat, setSelectedCat] = useState('All');
+  const [barbers, setBarbers] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  async function fetchData() {
+    try {
+      const [servicesRes, barbersRes] = await Promise.all([
+        apiClient.get('/services'),
+        apiClient.get('/barbers?limit=5')
+      ]);
+      
+      const sData = servicesRes.data?.data?.services || servicesRes.data?.data || [];
+      const bData = barbersRes.data?.data?.barbers || barbersRes.data?.data || [];
+
+      setServices(Array.isArray(sData) ? sData : []);
+      setBarbers(Array.isArray(bData) ? bData : []);
+    } catch (e) {
+      console.error('Failed to fetch home data:', e);
+      setBarbers([]);
+      setServices([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const firstName = user?.name?.split(' ')[0] || 'Guest';
+  const safeServices = Array.isArray(services) ? services : [];
+  const safeBarbers = Array.isArray(barbers) ? barbers : [];
 
   const filteredServices = selectedCat === 'All'
-    ? SERVICES.slice(0, 6)
-    : SERVICES.filter(s => s.category === selectedCat).slice(0, 6);
+    ? safeServices.slice(0, 6)
+    : safeServices.filter(s => s && s.category === selectedCat).slice(0, 6);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors.gold} />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -85,21 +123,25 @@ export default function CustomerHome() {
 
       {/* Services Grid */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.serviceScroll} contentContainerStyle={{ paddingHorizontal: Spacing.lg, gap: Spacing.sm }}>
-        {filteredServices.map(svc => (
-          <TouchableOpacity
-            key={svc.id}
-            style={styles.serviceCard}
-            onPress={() => router.push({ pathname: '/(customer)/booking' as any, params: { serviceId: svc.id } })}
-            activeOpacity={0.8}
-          >
-            <View style={styles.svcIconBox}>
-              <Text style={styles.svcIcon}>{svc.icon}</Text>
-            </View>
-            <Text style={styles.svcName}>{svc.name}</Text>
-            <Text style={styles.svcPrice}>Rs. {svc.price.toLocaleString()}</Text>
-            <Text style={styles.svcDuration}>⏱ {svc.duration} min</Text>
-          </TouchableOpacity>
-        ))}
+        {filteredServices.length === 0 ? (
+          <Text style={{ color: Colors.textMuted }}>No services available.</Text>
+        ) : (
+          filteredServices.map(svc => (
+            <TouchableOpacity
+              key={svc._id}
+              style={styles.serviceCard}
+              onPress={() => router.push({ pathname: '/(customer)/booking' as any, params: { serviceId: svc._id } })}
+              activeOpacity={0.8}
+            >
+              <View style={styles.svcIconBox}>
+                <Text style={styles.svcIcon}>✨</Text>
+              </View>
+              <Text style={styles.svcName}>{svc.name}</Text>
+              <Text style={styles.svcPrice}>Rs. {svc.price}</Text>
+              <Text style={styles.svcDuration}>⏱ {svc.duration} min</Text>
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
 
       {/* Featured Barbers */}
@@ -111,13 +153,25 @@ export default function CustomerHome() {
       </View>
 
       <View style={styles.barbersList}>
-        {BARBERS.slice(0, 3).map(barber => (
-          <BarberCard
-            key={barber.id}
-            {...barber}
-            onPress={() => router.push({ pathname: '/(customer)/barber-detail' as any, params: { barberId: barber.id } })}
-          />
-        ))}
+        {safeBarbers.length === 0 ? (
+          <Text style={{ color: Colors.textMuted, textAlign: 'center', padding: Spacing.lg }}>No barbers found.</Text>
+        ) : (
+          safeBarbers.slice(0, 3).map(barber => (
+            <BarberCard
+              key={barber._id}
+              name={barber.name}
+              initials={barber.name?.substring(0, 2).toUpperCase() || 'BB'}
+              color={Colors.gold}
+              specialization={barber.specialization || 'Expert Barber'}
+              rating={barber.rating || 0}
+              reviewCount={barber.reviewCount || 0}
+              experience={barber.experience || 0}
+              status={barber.status || 'available'}
+              price={`Rs. 500+`}
+              onPress={() => router.push({ pathname: '/(customer)/barber-detail' as any, params: { barberId: barber._id } })}
+            />
+          ))
+        )}
       </View>
 
       {/* Quick Book Banner */}

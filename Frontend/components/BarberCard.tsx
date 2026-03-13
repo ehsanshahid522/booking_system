@@ -16,16 +16,23 @@ interface BarberCardProps {
   experience: number;
   status: BarberStatus;
   price: string;
+  shopName?: string;
+  shopLocation?: string;
   onPress?: () => void;
 }
 
-export default function BarberCard({ name, initials, color, specialization, rating, reviewCount, experience, status, price, onPress }: BarberCardProps) {
+export default function BarberCard({ 
+  name, initials, color, specialization, rating, 
+  reviewCount, experience, status, price, 
+  shopName, shopLocation, onPress 
+}: BarberCardProps) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.header}>
         <Avatar initials={initials} color={color} size={56} fontSize={20} />
         <View style={styles.info}>
           <Text style={styles.name}>{name}</Text>
+          {shopName ? <Text style={styles.shopName}>📍 {shopName}</Text> : null}
           <Text style={styles.spec}>{specialization}</Text>
           <StarRating rating={rating} reviewCount={reviewCount} size={13} />
         </View>
@@ -38,6 +45,11 @@ export default function BarberCard({ name, initials, color, specialization, rati
         <View style={styles.tag}>
           <Text style={styles.tagText}>💈 {price}</Text>
         </View>
+        {shopLocation ? (
+          <View style={[styles.tag, { flex: 1 }]}>
+            <Text style={styles.tagText} numberOfLines={1}>📍 {shopLocation}</Text>
+          </View>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -55,6 +67,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   info: { flex: 1, gap: 3 },
   name: { color: Colors.text, fontSize: 16, fontWeight: '700' },
+  shopName: { color: Colors.gold, fontSize: 13, marginBottom: 2 },
   spec: { color: Colors.textSecondary, fontSize: 13 },
   footer: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
   tag: { backgroundColor: Colors.surface, borderRadius: Radius.sm, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: Colors.border },

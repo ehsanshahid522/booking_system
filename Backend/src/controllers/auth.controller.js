@@ -7,7 +7,7 @@ import ApiResponse from '../utils/ApiResponse.js';
 // @access  Public
 export const signup = async (req, res, next) => {
   try {
-    const { name, email, phone, password, role } = req.body;
+    const { name, email, phone, password, role, shopName, shopLocation } = req.body;
 
     // Check if user exists
     const userExists = await User.findOne({ email });
@@ -22,6 +22,8 @@ export const signup = async (req, res, next) => {
       phone,
       password,
       role: role || 'customer',
+      shopName: role === 'barber' ? shopName : undefined,
+      shopLocation: role === 'barber' ? shopLocation : undefined
     });
 
     if (user) {

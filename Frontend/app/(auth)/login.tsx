@@ -18,7 +18,6 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('customer');
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
@@ -28,16 +27,12 @@ export default function LoginScreen() {
       return;
     }
     setLoading(true);
-    const ok = await login(email, password, selectedRole);
+    const ok = await login(email, password);
     setLoading(false);
     if (!ok) Alert.alert('Login Failed', 'Please check your credentials.');
   }
 
-  async function quickDemo(role: UserRole) {
-    setLoading(true);
-    await login(`${role}@test.com`, '123456', role);
-    setLoading(false);
-  }
+
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -54,22 +49,7 @@ export default function LoginScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Welcome Back</Text>
 
-          {/* Role Selector */}
-          <Text style={styles.label}>Login As</Text>
-          <View style={styles.roleRow}>
-            {ROLES.map((r) => (
-              <TouchableOpacity
-                key={r.value}
-                style={[styles.roleBtn, selectedRole === r.value && styles.roleBtnActive]}
-                onPress={() => setSelectedRole(r.value)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.roleIcon}>{r.icon}</Text>
-                <Text style={[styles.roleLabel, selectedRole === r.value && styles.roleLabelActive]}>{r.label}</Text>
-                <Text style={styles.roleDesc}>{r.desc}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+
 
           {/* Email */}
           <Text style={styles.label}>Email</Text>
@@ -108,22 +88,7 @@ export default function LoginScreen() {
             <Text style={styles.loginBtnText}>{loading ? 'Logging in...' : 'Login'}</Text>
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Quick Demo</Text>
-            <View style={styles.dividerLine} />
-          </View>
 
-          {/* Demo Buttons */}
-          <View style={styles.demoRow}>
-            {ROLES.map((r) => (
-              <TouchableOpacity key={r.value} style={styles.demoBtn} onPress={() => quickDemo(r.value)} activeOpacity={0.8}>
-                <Text style={styles.demoIcon}>{r.icon}</Text>
-                <Text style={styles.demoBtnText}>{r.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
         </View>
 
         {/* Sign Up Link */}

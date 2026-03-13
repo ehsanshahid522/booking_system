@@ -7,8 +7,8 @@ import ApiResponse from '../utils/ApiResponse.js';
 export const getBarbers = async (req, res, next) => {
   try {
     const barbers = await User.find({ role: 'barber', isActive: true })
-      .select('name avatar bio specialization experience rating reviewCount status')
-      .populate('services', 'name price duration icon category');
+      .select('name avatar bio specialization experience rating reviewCount status shopName shopLocation')
+      .populate('services.service', 'name price duration icon category');
 
     new ApiResponse(res, 200, 'Barbers fetched successfully', { barbers });
   } catch (error) {
@@ -23,7 +23,7 @@ export const getBarberById = async (req, res, next) => {
   try {
     const barber = await User.findOne({ _id: req.params.id, role: 'barber' })
       .select('-password')
-      .populate('services', 'name price duration icon category');
+      .populate('services.service', 'name price duration icon category');
 
     if (!barber) {
       return new ApiResponse(res, 404, 'Barber not found');
@@ -35,17 +35,29 @@ export const getBarberById = async (req, res, next) => {
   }
 };
 
-// @desc    Update barber profile
+// @desc    Update barber profile & shop setup
 // @route   PUT /api/barbers/profile
 // @access  Private (Barber only)
 export const updateBarberProfile = async (req, res, next) => {
   try {
-    const { bio, experience, specialization, workingHours, breakTime, daysAvailable, services } = req.body;
+    const { 
+      shopName,
+      shopLocation,
+      bio, 
+      experience, 
+      specialization, 
+      workingHours, 
+      breakTime, 
+      daysAvailable, 
+      services 
+    } = req.body;
 
     const updatedBarber = await User.findByIdAndUpdate(
       req.user.id,
       {
         $set: {
+          shopName,
+          shopLocation,
           bio,
           experience,
           specialization,
@@ -59,6 +71,39 @@ export const updateBarberProfile = async (req, res, next) => {
     ).select('-password');
 
     new ApiResponse(res, 200, 'Profile updated successfully', { barber: updatedBarber });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Add or update a custom priced service to barber profile
+// @route   PUT /api/barbers/services
+// @access  Private (Barber only)
+export const updateBarberServices = async (req, res, next) => {
+  try {
+    const { serviceId, customPrice, isActive = true } = req.body;
+
+    const barber = await User.findById(req.user.id);
+    if (!barber) return new ApiResponse(res, 404, 'Barber not found');
+
+    // Check if the service already exists in array
+    const serviceIndex = barber.services.findIndex(s => s.service.toString() === serviceId);
+
+    if (serviceIndex > -1) {
+      // Update existing
+      barber.services[serviceIndex].customPrice = customPrice;
+      barber.services[serviceIndex].isActive = isActive;
+    } else {
+      // Add new
+      barber.services.push({ service: serviceId, customPrice, isActive });
+    }
+
+    await barber.save();
+    
+    // Return populated data
+    await barber.populate('services.service', 'name category duration icon');
+
+    new ApiResponse(res, 200, 'Services updated successfully', { services: barber.services });
   } catch (error) {
     next(error);
   }

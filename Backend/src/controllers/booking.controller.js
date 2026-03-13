@@ -35,14 +35,24 @@ export const createBooking = async (req, res, next) => {
       return new ApiResponse(res, 400, 'This time slot is already booked');
     }
 
+    // Find the custom price set by this specific barber
+    const barberService = barber.services.find(s => s.service.toString() === serviceId);
+    if (!barberService || !barberService.isActive) {
+      return new ApiResponse(res, 400, 'Barber does not offer this service currently');
+    }
+
+    const bookingStatus = req.body.status === 'manual_offline' ? 'manual_offline' : 'pending';
+    const customerId = req.user ? req.user.id : barberId; // If manual, customer is the barber themselves
+
     const booking = await Booking.create({
-      customer: req.user.id,
+      customer: customerId,
       barber: barberId,
       service: serviceId,
       date,
       startTime,
       endTime,
-      amount: service.price,
+      status: bookingStatus,
+      amount: barberService.customPrice, // Use Barber's Custom Price!
       notes
     });
 
@@ -83,24 +93,24 @@ export const getMyBookings = async (req, res, next) => {
   }
 };
 
-// @desc    Update booking status
+// @desc    Update booking status (Accept/Reject/Complete)
 // @route   PUT /api/bookings/:id/status
-// @access  Private (Barber or Admin)
+// @access  Private (Barber)
 export const updateBookingStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
-    
-    if (!['confirmed', 'completed', 'cancelled', 'no_show'].includes(status)) {
-      return new ApiResponse(res, 400, 'Invalid status');
+
+    const validStatuses = ['confirmed', 'completed', 'cancelled', 'no_show', 'manual_offline'];
+    if (!validStatuses.includes(status)) {
+      return new ApiResponse(res, 400, 'Invalid status value');
     }
 
     const booking = await Booking.findById(req.params.id);
-
     if (!booking) {
       return new ApiResponse(res, 404, 'Booking not found');
     }
 
-    // Authorization check
+    // Only the assigned barber (or admin) can update the booking
     if (req.user.role === 'barber' && booking.barber.toString() !== req.user.id) {
       return new ApiResponse(res, 403, 'Not authorized to update this booking');
     }
@@ -108,9 +118,9 @@ export const updateBookingStatus = async (req, res, next) => {
     booking.status = status;
     await booking.save();
 
-    // Notify customer via Socket.io
+    // Notify customer via Socket.io when barber accepts/rejects
     const io = req.app.get('io');
-    if (io) {
+    if (io && booking.customer) {
       io.to(`user_${booking.customer}`).emit('booking_status_update', {
         bookingId: booking._id,
         status: booking.status

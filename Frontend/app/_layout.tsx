@@ -20,12 +20,29 @@ function RootLayoutNav() {
 
     if (!user) {
       if (!inAuth) router.replace('/(auth)/onboarding' as any);
-    } else if (user.role === 'customer' && !inCustomer) {
-      router.replace('/(customer)' as any);
-    } else if (user.role === 'barber' && !inBarber) {
-      router.replace('/(barber)' as any);
-    } else if (user.role === 'admin' && !inAdmin) {
-      router.replace('/(admin)' as any);
+    } else {
+      // User is logged in, direct them based on role
+      if (user.role === 'admin') {
+        if (!inAdmin) { // Check if not in admin
+          router.replace('/(admin)' as any);
+        }
+      } else if (user.role === 'barber') {
+        // Direct new barbers to setup their shop info
+        if (!user.shopName) {
+          if (!inBarber || segments[1] !== 'onboarding') { // Check if not in barber or not on onboarding
+            router.replace('/(barber)/onboarding' as any);
+          }
+        } else {
+          if (!inBarber || segments.length === 1) { // If in barber but not on a specific route, or not in barber at all
+            router.replace('/(barber)' as any);
+          }
+        }
+      } else if (user.role === 'customer') {
+        if (!inCustomer) {
+          router.replace('/(customer)' as any);
+        }
+      }
+      // Add more role-based redirection logic here if needed
     }
   }, [user, isLoading, segments]);
 

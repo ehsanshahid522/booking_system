@@ -1,40 +1,29 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import apiClient from '@/api/client';
+import { Alert } from 'react-native';
 
 export type UserRole = 'customer' | 'barber' | 'admin';
 
 export interface User {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   phone?: string;
   role: UserRole;
-  initials: string;
-  color: string;
+  profileImage?: string;
+  shopName?: string;
+  shopLocation?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string, role: UserRole) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
+  signup: (name: string, email: string, password: string, role: UserRole, phone?: string) => Promise<boolean>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
 }
-
-const MOCK_USERS: Record<UserRole, User> = {
-  customer: {
-    id: 'c1', name: 'Ali Raza', email: 'customer@test.com',
-    phone: '+92 300 1234567', role: 'customer', initials: 'AR', color: '#1E88E5',
-  },
-  barber: {
-    id: 'b1', name: 'Ahmed Ali', email: 'barber@test.com',
-    phone: '+92 311 9876543', role: 'barber', initials: 'AA', color: '#C9A84C',
-  },
-  admin: {
-    id: 'a1', name: 'Shop Owner', email: 'admin@test.com',
-    phone: '+92 321 5555555', role: 'admin', initials: 'SO', color: '#E53935',
-  },
-};
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -48,38 +37,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function loadUser() {
     try {
-      const stored = await AsyncStorage.getItem('auth_user');
-      if (stored) setUser(JSON.parse(stored));
+      const token = await AsyncStorage.getItem('auth_token');
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+      const response = await apiClient.get('/auth/me');
+      setUser(response.data.data);
     } catch (e) {
       console.error('Failed to load user', e);
+      await AsyncStorage.removeItem('auth_token');
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function login(email: string, password: string, role: UserRole): Promise<boolean> {
-    // Mock auth – accept any non-empty email/password
-    if (!email.trim() || !password.trim()) return false;
-    const mockUser = { ...MOCK_USERS[role], email: email.trim() };
-    setUser(mockUser);
-    await AsyncStorage.setItem('auth_user', JSON.stringify(mockUser));
-    return true;
+  async function login(email: string, password: string): Promise<boolean> {
+    try {
+      const res = await apiClient.post('/auth/login', { email, password });
+      const { user, token } = res.data.data;
+      await AsyncStorage.setItem('auth_token', token);
+      setUser(user);
+      return true;
+    } catch (error: any) {
+      console.error('Login error:', error.response?.data?.message || error.message);
+      return false;
+    }
+  }
+
+  async function signup(name: string, email: string, password: string, role: UserRole, phone?: string): Promise<boolean> {
+    try {
+      const res = await apiClient.post('/auth/signup', { name, email, password, role, phone });
+      const { user, token } = res.data.data;
+      await AsyncStorage.setItem('auth_token', token);
+      setUser(user);
+      return true;
+    } catch (error: any) {
+      Alert.alert('Signup Error', error.response?.data?.message || 'Something went wrong');
+      return false;
+    }
   }
 
   async function logout() {
     setUser(null);
-    await AsyncStorage.removeItem('auth_user');
+    await AsyncStorage.removeItem('auth_token');
   }
 
   function updateUser(data: Partial<User>) {
     if (!user) return;
     const updated = { ...user, ...data };
     setUser(updated);
-    AsyncStorage.setItem('auth_user', JSON.stringify(updated));
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, signup, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

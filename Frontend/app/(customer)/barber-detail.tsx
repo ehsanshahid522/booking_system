@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-import { BARBERS, SERVICES } from '@/constants/MockData';
+import apiClient from '@/api/client';
 import Avatar from '@/components/Avatar';
 import StarRating from '@/components/StarRating';
 import StatusBadge from '@/components/StatusBadge';
@@ -16,10 +16,45 @@ const REVIEWS = [
 export default function BarberDetailScreen() {
   const router = useRouter();
   const { barberId } = useLocalSearchParams<{ barberId: string }>();
-  const barber = BARBERS.find(b => b.id === barberId) || BARBERS[0];
   const [activeTab, setActiveTab] = useState<'info' | 'reviews'>('info');
+  const [barber, setBarber] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const barberServices = SERVICES.filter(s => barber.services.includes(s.id));
+  useEffect(() => {
+    async function fetchBarber() {
+      try {
+        const res = await apiClient.get(`/barbers/${barberId}`);
+        setBarber(res.data.data);
+      } catch (error) {
+        console.error('Failed to fetch barber details', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (barberId) fetchBarber();
+  }, [barberId]);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors.gold} />
+      </View>
+    );
+  }
+
+  if (!barber) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: Colors.textMuted }}>Barber not found.</Text>
+        <TouchableOpacity style={{ marginTop: 20 }} onPress={() => router.back()}>
+          <Text style={{ color: Colors.gold }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const barberServices = Array.isArray(barber.services) ? barber.services : [];
+  const daysAvailable = Array.isArray(barber.daysAvailable) ? barber.daysAvailable : [];
 
   return (
     <View style={styles.container}>
@@ -35,19 +70,21 @@ export default function BarberDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
         <View style={styles.profileHeader}>
-          <Avatar initials={barber.initials} color={barber.color} size={90} fontSize={32} />
-          <Text style={styles.barberName}>{barber.name}</Text>
-          <Text style={styles.spec}>{barber.specialization}</Text>
-          <StarRating rating={barber.rating} reviewCount={barber.reviewCount} size={15} />
-          <View style={{ marginTop: Spacing.sm }}><StatusBadge status={barber.status} /></View>
+          <Avatar initials={barber.name?.substring(0, 2).toUpperCase() || 'BB'} color={Colors.gold} size={90} fontSize={32} />
+          <Text style={styles.barberName}>{barber.name || 'Barber'}</Text>
+          {barber.shopName ? <Text style={styles.shopDetailName}>📍 {barber.shopName}</Text> : null}
+          {barber.shopLocation ? <Text style={styles.shopDetailLoc}>{barber.shopLocation}</Text> : null}
+          <Text style={styles.spec}>{barber.specialization || 'Expert Barber'}</Text>
+          <StarRating rating={barber.rating || 0} reviewCount={barber.reviewCount || 0} size={15} />
+          <View style={{ marginTop: Spacing.sm }}><StatusBadge status={barber.status || 'available'} /></View>
         </View>
 
         {/* Stats Row */}
         <View style={styles.statsRow}>
           {[
-            { label: 'Experience', value: `${barber.experience} yrs` },
-            { label: 'Rating', value: barber.rating.toFixed(1) },
-            { label: 'Reviews', value: barber.reviewCount.toString() },
+            { label: 'Experience', value: `${barber.experience || 0} yrs` },
+            { label: 'Rating', value: (barber.rating || 0).toFixed(1) },
+            { label: 'Reviews', value: (barber.reviewCount || 0).toString() },
           ].map(s => (
             <View key={s.label} style={styles.statItem}>
               <Text style={styles.statValue}>{s.value}</Text>
@@ -58,17 +95,17 @@ export default function BarberDetailScreen() {
 
         {/* Info Card */}
         <View style={styles.infoCard}>
-          <Text style={styles.infoText}>📝 {barber.bio}</Text>
+          <Text style={styles.infoText}>📝 {barber.bio || 'No bio available.'}</Text>
           <View style={styles.infoRow}>
-            <Text style={styles.infoText}>🕐 {barber.workingHours}</Text>
+            <Text style={styles.infoText}>🕐 {barber.workingHours || '10:00 AM - 08:00 PM'}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoText}>☕ Break: {barber.breakTime}</Text>
+            <Text style={styles.infoText}>☕ Break: {barber.breakTime || 'None'}</Text>
           </View>
           <View style={styles.daysRow}>
             {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day => (
-              <View key={day} style={[styles.dayChip, barber.daysAvailable.includes(day) && styles.dayActive]}>
-                <Text style={[styles.dayText, barber.daysAvailable.includes(day) && styles.dayActiveText]}>{day.slice(0, 2)}</Text>
+              <View key={day} style={[styles.dayChip, daysAvailable.includes(day) && styles.dayActive]}>
+                <Text style={[styles.dayText, daysAvailable.includes(day) && styles.dayActiveText]}>{day.slice(0, 2)}</Text>
               </View>
             ))}
           </View>
@@ -85,16 +122,20 @@ export default function BarberDetailScreen() {
 
         {activeTab === 'info' ? (
           <View style={styles.section}>
-            {barberServices.map(s => (
-              <View key={s.id} style={styles.serviceRow}>
-                <Text style={styles.serviceIcon}>{s.icon}</Text>
-                <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>{s.name}</Text>
-                  <Text style={styles.serviceDur}>{s.duration} min</Text>
+            {barberServices.length === 0 ? (
+              <Text style={{ color: Colors.textMuted, textAlign: 'center' }}>No services available.</Text>
+            ) : (
+              barberServices.map((s: any) => (
+                <View key={s._id || Math.random().toString()} style={styles.serviceRow}>
+                  <Text style={styles.serviceIcon}>{s.service?.icon || '✂️'}</Text>
+                  <View style={styles.serviceInfo}>
+                    <Text style={styles.serviceName}>{s.service?.name || 'Service'}</Text>
+                    <Text style={styles.serviceDur}>{s.service?.duration || 0} min</Text>
+                  </View>
+                  <Text style={styles.servicePrice}>Rs. {s.customPrice?.toLocaleString() || 0}</Text>
                 </View>
-                <Text style={styles.servicePrice}>Rs. {s.price.toLocaleString()}</Text>
-              </View>
-            ))}
+              ))
+            )}
           </View>
         ) : (
           <View style={styles.section}>
@@ -117,12 +158,12 @@ export default function BarberDetailScreen() {
       {/* Book Button */}
       <View style={styles.bookBar}>
         <View>
-          <Text style={styles.bookPrice}>{barber.price}</Text>
+          <Text style={styles.bookPrice}>Rs. {barber.services?.[0]?.customPrice?.toLocaleString() || '500'}+</Text>
           <Text style={styles.bookPriceLabel}>Starting price</Text>
         </View>
         <TouchableOpacity
           style={[styles.bookBtn, barber.status === 'off_duty' && styles.bookBtnDisabled]}
-          onPress={() => router.push({ pathname: '/(customer)/booking' as any, params: { barberId: barber.id } })}
+          onPress={() => router.push({ pathname: '/(customer)/booking' as any, params: { barberId: barber._id } })}
           disabled={barber.status === 'off_duty'}
         >
           <Text style={styles.bookBtnText}>{barber.status === 'off_duty' ? 'Off Duty' : 'Book Now ✂️'}</Text>
@@ -140,6 +181,8 @@ const styles = StyleSheet.create({
   topBarTitle: { color: Colors.text, fontSize: 16, fontWeight: '700' },
   profileHeader: { alignItems: 'center', paddingTop: Spacing.xl, paddingBottom: Spacing.lg, gap: Spacing.sm },
   barberName: { color: Colors.text, fontSize: 24, fontWeight: '800', marginTop: Spacing.sm },
+  shopDetailName: { color: Colors.gold, fontSize: 16, fontWeight: '700', marginTop: 4 },
+  shopDetailLoc: { color: Colors.textSecondary, fontSize: 13, marginBottom: 4 },
   spec: { color: Colors.textSecondary, fontSize: 14 },
   statsRow: { flexDirection: 'row', marginHorizontal: Spacing.lg, backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.md },
   statItem: { flex: 1, alignItems: 'center', gap: 4 },

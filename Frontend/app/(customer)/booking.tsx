@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-import { SERVICES, BARBERS, TIME_SLOTS, BOOKED_SLOTS } from '@/constants/MockData';
+import { TIME_SLOTS } from '@/constants/MockData';
+import apiClient from '@/api/client';
 import Avatar from '@/components/Avatar';
 
 const STEPS = ['Service', 'Barber', 'Date', 'Confirm'];
@@ -27,23 +28,87 @@ export default function BookingScreen() {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('');
   const [notes, setNotes] = useState('');
+  const [services, setServices] = useState<any[]>([]);
+  const [barbers, setBarbers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    async function loadData() {
+      try {
+        const [barbersRes, servicesRes] = await Promise.all([
+          apiClient.get('/barbers'),
+          apiClient.get('/services')
+        ]);
+        const bRes = barbersRes?.data?.data;
+        const sRes = servicesRes?.data?.data;
+        
+        const bData = bRes?.barbers || bRes || [];
+        const sData = sRes?.services || sRes || [];
+        
+        setBarbers(Array.isArray(bData) ? bData : []);
+        setServices(Array.isArray(sData) ? sData : []);
+      } catch (e) {
+        console.error('Fetch error:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   const days = getNext7Days();
-  const svc = SERVICES.find(s => s.id === selectedService);
-  const barber = BARBERS.find(b => b.id === selectedBarber);
+  const safeServices = Array.isArray(services) ? services : [];
+  const safeBarbers = Array.isArray(barbers) ? barbers : [];
+  
+  const svc = safeServices.find(s => s._id === selectedService);
+  const barber = safeBarbers.find(b => b._id === selectedBarber);
+
+  // Find the custom price for this service from the selected barber's profile
+  const bService = barber?.services?.find((s: any) => 
+    (s.service?._id || s.service) === selectedService
+  );
+  const realPrice = bService ? bService.customPrice : (svc?.price || 0);
 
   function canNext() {
     if (step === 0) return !!selectedService;
     if (step === 1) return !!selectedBarber;
     if (step === 2) return !!selectedDate && !!selectedSlot;
+    if (step === 3) return !submitting;
     return true;
   }
 
-  function handleConfirm() {
-    Alert.alert(
-      '✅ Booking Confirmed!',
-      `Your ${svc?.name} with ${barber?.name} on ${selectedDate} at ${selectedSlot} has been booked!`,
-      [{ text: 'View Bookings', onPress: () => router.replace('/(customer)/my-bookings' as any) }]
+  async function handleConfirm() {
+    if (!svc || !barber) return;
+    try {
+      setSubmitting(true);
+      await apiClient.post('/bookings', {
+        barberId: barber._id,
+        serviceId: svc._id,
+        date: selectedDate,
+        startTime: selectedSlot,
+        endTime: selectedSlot, // Basic fallback since time calc is complex on frontend for now
+        notes
+      });
+      
+      Alert.alert(
+        '✅ Booking Confirmed!',
+        `Your ${svc.name} with ${barber.name} on ${selectedDate} at ${selectedSlot} has been booked!`,
+        [{ text: 'View Bookings', onPress: () => router.replace('/(customer)/my-bookings' as any) }]
+      );
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Booking Failed', error.response?.data?.message || 'Please try again later.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: Colors.gold }}>Loading...</Text>
+      </View>
     );
   }
 
@@ -78,19 +143,20 @@ export default function BookingScreen() {
         {step === 0 && (
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>Choose a Service</Text>
-            {SERVICES.map(svc => (
+            {safeServices.length === 0 ? <Text style={{ color: Colors.textMuted }}>No services available.</Text> : null}
+            {safeServices.map(svc => (
               <TouchableOpacity
-                key={svc.id}
-                style={[styles.optionCard, selectedService === svc.id && styles.optionCardActive]}
-                onPress={() => setSelectedService(svc.id)}
+                key={svc._id}
+                style={[styles.optionCard, selectedService === svc._id && styles.optionCardActive]}
+                onPress={() => setSelectedService(svc._id)}
               >
-                <Text style={styles.optionIcon}>{svc.icon}</Text>
+                <Text style={styles.optionIcon}>✨</Text>
                 <View style={styles.optionInfo}>
-                  <Text style={[styles.optionName, selectedService === svc.id && { color: Colors.gold }]}>{svc.name}</Text>
+                  <Text style={[styles.optionName, selectedService === svc._id && { color: Colors.gold }]}>{svc.name}</Text>
                   <Text style={styles.optionSub}>{svc.category} · {svc.duration} min</Text>
                 </View>
-                <Text style={[styles.optionPrice, selectedService === svc.id && { color: Colors.goldLight }]}>Rs. {svc.price.toLocaleString()}</Text>
-                {selectedService === svc.id && <Text style={styles.checkIcon}>✓</Text>}
+                <Text style={[styles.optionPrice, selectedService === svc._id && { color: Colors.goldLight }]}>Rs. {svc.price}</Text>
+                {selectedService === svc._id && <Text style={styles.checkIcon}>✓</Text>}
               </TouchableOpacity>
             ))}
           </View>
@@ -100,25 +166,28 @@ export default function BookingScreen() {
         {step === 1 && (
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>Choose a Barber</Text>
-            {BARBERS.map(b => (
-              <TouchableOpacity
-                key={b.id}
-                style={[styles.barberOption, selectedBarber === b.id && styles.optionCardActive, b.status === 'off_duty' && styles.disabledOption]}
-                onPress={() => b.status !== 'off_duty' && setSelectedBarber(b.id)}
-              >
-                <Avatar initials={b.initials} color={b.color} size={44} fontSize={16} />
-                <View style={styles.optionInfo}>
-                  <Text style={[styles.optionName, selectedBarber === b.id && { color: Colors.gold }]}>{b.name}</Text>
-                  <Text style={styles.optionSub}>{b.specialization} · ⭐ {b.rating}</Text>
-                </View>
-                <View style={styles.statusChip}>
-                  <Text style={[styles.statusText, b.status === 'available' && { color: Colors.success }, b.status === 'busy' && { color: Colors.warning }, b.status === 'off_duty' && { color: Colors.textMuted }]}>
-                    {b.status === 'available' ? '● Online' : b.status === 'busy' ? '● Busy' : '● Off'}
-                  </Text>
-                </View>
-                {selectedBarber === b.id && <Text style={styles.checkIcon}>✓</Text>}
-              </TouchableOpacity>
-            ))}
+            {safeBarbers.length === 0 ? <Text style={{ color: Colors.textMuted }}>No barbers available.</Text> : null}
+            {safeBarbers
+              .filter(b => b.services?.some((s: any) => (s.service?._id || s.service) === selectedService))
+              .map(b => (
+                <TouchableOpacity
+                  key={b._id}
+                  style={[styles.barberOption, selectedBarber === b._id && styles.optionCardActive, b.status === 'off_duty' && styles.disabledOption]}
+                  onPress={() => b.status !== 'off_duty' && setSelectedBarber(b._id)}
+                >
+                  <Avatar initials={b.name?.substring(0, 2).toUpperCase() || 'BB'} color={Colors.gold} size={44} fontSize={16} />
+                  <View style={styles.optionInfo}>
+                    <Text style={[styles.optionName, selectedBarber === b._id && { color: Colors.gold }]}>{b.name || 'Barber'}</Text>
+                    <Text style={styles.optionSub}>{b.shopName || 'Expert Barber'} · ⭐ {b.rating || 0}</Text>
+                  </View>
+                  <View style={styles.statusChip}>
+                    <Text style={[styles.statusText, b.status === 'available' && { color: Colors.success }, b.status === 'busy' && { color: Colors.warning }, b.status === 'off_duty' && { color: Colors.textMuted }]}>
+                      {b.status === 'available' ? '● Online' : b.status === 'busy' ? '● Busy' : '● Off'}
+                    </Text>
+                  </View>
+                  {selectedBarber === b._id && <Text style={styles.checkIcon}>✓</Text>}
+                </TouchableOpacity>
+              ))}
           </View>
         )}
 
@@ -144,7 +213,7 @@ export default function BookingScreen() {
             <Text style={styles.stepTitle}>Select Time Slot</Text>
             <View style={styles.slotsGrid}>
               {TIME_SLOTS.map(slot => {
-                const isBooked = BOOKED_SLOTS.includes(slot);
+                const isBooked = false; // Implement proper booking check via backend slots API later
                 return (
                   <TouchableOpacity
                     key={slot}
@@ -173,7 +242,7 @@ export default function BookingScreen() {
                 { label: '📅 Date', value: selectedDate ? new Date(selectedDate).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long' }) : '-' },
                 { label: '🕐 Time', value: selectedSlot || '-' },
                 { label: '⏱ Duration', value: `${svc?.duration} min` },
-                { label: '💰 Price', value: `Rs. ${svc?.price.toLocaleString()}` },
+                { label: '💰 Price', value: `Rs. ${realPrice.toLocaleString()}` },
               ].map(item => (
                 <View key={item.label} style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>{item.label}</Text>
@@ -207,7 +276,7 @@ export default function BookingScreen() {
           onPress={() => step < STEPS.length - 1 ? setStep(s => s + 1) : handleConfirm()}
           disabled={!canNext()}
         >
-          <Text style={styles.nextBtnText}>{step < STEPS.length - 1 ? 'Continue →' : '✅ Confirm Booking'}</Text>
+          <Text style={styles.nextBtnText}>{submitting ? 'Booking...' : (step < STEPS.length - 1 ? 'Continue →' : '✅ Confirm Booking')}</Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-import { BARBERS } from '@/constants/MockData';
+import apiClient from '@/api/client';
 import BarberCard from '@/components/BarberCard';
 
 const FILTERS = ['All', 'Available', 'Hair', 'Beard', 'Styling'];
@@ -11,19 +11,47 @@ export default function BarbersScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
+  const [barbers, setBarbers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = BARBERS.filter(b => {
-    const matchSearch = b.name.toLowerCase().includes(search.toLowerCase()) || b.specialization.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === 'All' || (filter === 'Available' && b.status === 'available') || b.specialization.toLowerCase().includes(filter.toLowerCase());
+  useEffect(() => {
+    async function fetchBarbers() {
+      try {
+        const res = await apiClient.get('/barbers');
+        const data = res.data?.data?.barbers || res.data?.data || [];
+        setBarbers(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Failed to fetch barbers', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchBarbers();
+  }, []);
+
+  const safeBarbers = Array.isArray(barbers) ? barbers : [];
+  const filtered = safeBarbers.filter(b => {
+    const nameStr = b.name || '';
+    const specStr = b.specialization || '';
+    const matchSearch = nameStr.toLowerCase().includes(search.toLowerCase()) || specStr.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === 'All' || (filter === 'Available' && b.status === 'available') || specStr.toLowerCase().includes(filter.toLowerCase());
     return matchSearch && matchFilter;
   });
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors.gold} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Our Barbers</Text>
-        <Text style={styles.subtitle}>{BARBERS.length} professionals ready for you</Text>
+        <Text style={styles.subtitle}>{safeBarbers.length} professionals ready for you</Text>
       </View>
 
       {/* Search */}
@@ -52,9 +80,19 @@ export default function BarbersScreen() {
         ) : (
           filtered.map(b => (
             <BarberCard
-              key={b.id}
-              {...b}
-              onPress={() => router.push({ pathname: '/(customer)/barber-detail' as any, params: { barberId: b.id } })}
+              key={b._id}
+              name={b.name || 'Barber'}
+              initials={b.name?.substring(0, 2).toUpperCase() || 'BB'}
+              color={Colors.gold}
+              specialization={b.specialization || 'Expert Barber'}
+              rating={b.rating || 0}
+              reviewCount={b.reviewCount || 0}
+              experience={b.experience || 0}
+              status={b.status || 'available'}
+              price={`Rs. 500+`}
+              shopName={b.shopName}
+              shopLocation={b.shopLocation}
+              onPress={() => router.push({ pathname: '/(customer)/barber-detail' as any, params: { barberId: b._id } })}
             />
           ))
         )}

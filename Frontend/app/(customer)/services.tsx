@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-import { SERVICES } from '@/constants/MockData';
+import apiClient from '@/api/client';
 import ServiceCard from '@/components/ServiceCard';
 
 const CATEGORIES = ['All', 'Hair', 'Beard', 'Skin', 'Wellness', 'Combo'];
@@ -11,8 +11,34 @@ export default function ServicesScreen() {
   const router = useRouter();
   const [cat, setCat] = useState('All');
   const [selected, setSelected] = useState('');
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = cat === 'All' ? SERVICES : SERVICES.filter(s => s.category === cat);
+  useEffect(() => {
+    async function fetchServices() {
+      try {
+        const res = await apiClient.get('/services');
+        const data = res.data?.data?.services || res.data?.data || [];
+        setServices(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Failed to fetch services', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchServices();
+  }, []);
+
+  const safeServices = Array.isArray(services) ? services : [];
+  const filtered = cat === 'All' ? safeServices : safeServices.filter(s => s && s.category === cat);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors.gold} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -33,18 +59,24 @@ export default function ServicesScreen() {
       </ScrollView>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.grid}>
-          {filtered.map(svc => (
-            <ServiceCard
-              key={svc.id}
-              {...svc}
-              selected={selected === svc.id}
-              onPress={() => {
-                setSelected(svc.id === selected ? '' : svc.id);
-              }}
-            />
-          ))}
-        </View>
+        {filtered.length === 0 ? (
+          <Text style={{ color: Colors.textMuted, textAlign: 'center', marginTop: 40 }}>No services found</Text>
+        ) : (
+          <View style={styles.grid}>
+            {filtered.map(svc => (
+              <ServiceCard
+                key={svc._id}
+                name={svc.name || 'Service'}
+                price={svc.price || 0}
+                duration={svc.duration || 0}
+                icon="✨"
+                category={svc.category || ''}
+                selected={selected === svc._id}
+                onPress={() => setSelected(svc._id === selected ? '' : svc._id)}
+              />
+            ))}
+          </View>
+        )}
 
         {selected && (
           <TouchableOpacity

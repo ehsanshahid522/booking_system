@@ -14,7 +14,7 @@ const ROLES = [
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -37,8 +37,7 @@ export default function SignupScreen() {
       return;
     }
     setLoading(true);
-    // Mock signup = auto login
-    await login(email, password, role);
+    const ok = await signup(name, email, password, role, phone);
     setLoading(false);
   }
 

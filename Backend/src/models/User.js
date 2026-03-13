@@ -20,6 +20,8 @@ const userSchema = new mongoose.Schema({
   favoriteBarbers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 
   // --- Barber Specific Fields ---
+  shopName: { type: String, default: '' },
+  shopLocation: { type: String, default: '' },
   bio: { type: String, default: '' },
   experience: { type: Number, default: 0 },
   specialization: { type: String, default: '' },
@@ -27,7 +29,13 @@ const userSchema = new mongoose.Schema({
   workingHours: { type: String, default: '10:00 AM - 08:00 PM' },
   daysAvailable: { type: [String], default: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] },
   breakTime: { type: String, default: '02:00 PM - 03:00 PM' },
-  services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }],
+  
+  // Custom Services Object Array so Barbers can set their own price overriding the global service price
+  services: [{
+    service: { type: mongoose.Schema.Types.ObjectId, ref: 'Service' },
+    customPrice: { type: Number, required: true },
+    isActive: { type: Boolean, default: true }
+  }],
   rating: { type: Number, default: 0 },
   reviewCount: { type: Number, default: 0 },
 }, { timestamps: true });
