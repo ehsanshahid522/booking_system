@@ -1,9 +1,9 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
-import Service from '../Backend/src/models/Service.js';
-import User from '../Backend/src/models/User.js';
-import Booking from '../Backend/src/models/Booking.js';
+import Service from './src/models/Service.js';
+import User from './src/models/User.js';
+import Booking from './src/models/Booking.js';
 
 dotenv.config();
 
@@ -25,9 +25,9 @@ const seedDB = async () => {
     ]);
     console.log('Services seeded');
 
-    const hashedPwd = await bcrypt.hash('123456', 10);
+    const hashedPwd = await bcrypt.hash('password123', 10);
 
-    // Create 3 barbers
+    // Create 3 barbers (original test barbers)
     const barbers = await User.insertMany([
       {
         name: 'Ali Raza',
@@ -82,9 +82,65 @@ const seedDB = async () => {
         ],
         workingHours: '09:00 AM - 06:00 PM',
         daysAvailable: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+      },
+      // --- NEW TEST BARBERS ---
+      {
+        name: 'Arsalan Khan',
+        email: 'arsalan@test.com',
+        password: hashedPwd,
+        phone: '03211234567',
+        role: 'barber',
+        shopName: 'Arsalan Cuts',
+        shopLocation: 'Gulberg, Lahore',
+        specialization: 'Classic Cuts',
+        experience: 4,
+        rating: 4.7,
+        reviewCount: 95,
+        status: 'available',
+        services: services.map(s => ({ service: s._id, customPrice: s.price + 200 })),
+        workingHours: '10:00 AM - 07:00 PM',
+        daysAvailable: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+      },
+      {
+        name: 'Zubair Ahmed',
+        email: 'zubair@test.com',
+        password: hashedPwd,
+        phone: '03329876543',
+        role: 'barber',
+        shopName: 'Zubair Salon',
+        shopLocation: 'DHA, Lahore',
+        specialization: 'Modern Styles',
+        experience: 6,
+        rating: 4.5,
+        reviewCount: 150,
+        status: 'available',
+        services: services.map(s => ({ service: s._id, customPrice: s.price + 50 })),
+        workingHours: '11:00 AM - 08:00 PM',
+        daysAvailable: ['Mon', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      },
+      {
+        name: 'Hamza Ali',
+        email: 'hamza@test.com',
+        password: hashedPwd,
+        phone: '03451112233',
+        role: 'barber',
+        shopName: 'Hamza Barbers',
+        shopLocation: 'Model Town, Lahore',
+        specialization: 'Fade & Beard Expert',
+        experience: 7,
+        rating: 4.9,
+        reviewCount: 210,
+        status: 'available',
+        services: [
+          { service: services[0]._id, customPrice: 1200 },
+          { service: services[1]._id, customPrice: 600 },
+          { service: services[2]._id, customPrice: 1500 }
+        ],
+        workingHours: '09:00 AM - 09:00 PM',
+        daysAvailable: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
       }
     ]);
-    console.log('3 Barbers seeded');
+    console.log('6 Barbers seeded (3 original + 3 new test barbers)');
 
     // Create 3 Customers
     const customers = await User.insertMany([
@@ -103,14 +159,28 @@ const seedDB = async () => {
         role: 'customer'
       },
       {
-        name: 'Bilal Abbas',
-        email: 'bilal@customer.com',
+        name: 'Test Customer',
+        email: 'customer@test.com',
         phone: '03334445566',
         password: hashedPwd,
         role: 'customer'
       }
     ]);
     console.log('3 Customers seeded');
+
+    console.log('\n=== SEED COMPLETE ===');
+    console.log('--- BARBERS ---');
+    console.log('Ali Raza         | ali@test.com      | password123');
+    console.log('Hassan Shah      | hassan@test.com   | password123');
+    console.log('Imran Khan       | imran@test.com    | password123');
+    console.log('Arsalan Khan     | arsalan@test.com  | password123');
+    console.log('Zubair Ahmed     | zubair@test.com   | password123');
+    console.log('Hamza Ali        | hamza@test.com    | password123');
+    console.log('\n--- CUSTOMERS ---');
+    console.log('Fahad Mustafa    | fahad@customer.com    | password123');
+    console.log('Danish Taimoor   | danish@customer.com   | password123');
+    console.log('Test Customer    | customer@test.com     | password123');
+    console.log('=====================\n');
 
     process.exit(0);
   } catch (err) {

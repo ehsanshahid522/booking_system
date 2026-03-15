@@ -4,7 +4,7 @@ import { Colors, Spacing, Radius } from '@/constants/Colors';
 import Avatar from './Avatar';
 import StarRating from './StarRating';
 import StatusBadge from './StatusBadge';
-import { BarberStatus } from '@/constants/MockData';
+import { BarberStatus } from '@/constants/types';
 
 interface BarberCardProps {
   name: string;

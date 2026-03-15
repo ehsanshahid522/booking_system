@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { BookingStatus } from '@/constants/MockData';
+import { BarberStatus, BookingStatus } from '@/constants/types';
 
 interface StatusBadgeProps {
   status: BookingStatus | string;

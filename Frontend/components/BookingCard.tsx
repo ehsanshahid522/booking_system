@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import Avatar from './Avatar';
 import StatusBadge from './StatusBadge';
-import { BookingStatus } from '@/constants/MockData';
+import { BookingStatus } from '@/constants/types';
 
 interface BookingCardProps {
   id: string;

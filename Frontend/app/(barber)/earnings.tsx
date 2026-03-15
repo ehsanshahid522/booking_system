@@ -1,7 +1,37 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-import { WEEK_REVENUE, TODAY_SCHEDULE, BARBERS } from '@/constants/MockData';
+
+const EARNINGS_DATA = {
+  totalBalance: 45200, lastMonth: 124000, today: 8500, average: 5200,
+  history: [
+    { id: '1', date: 'Mar 12, 2024', amount: 8500, status: 'Paid' },
+    { id: '2', date: 'Mar 05, 2024', amount: 12000, status: 'Paid' },
+  ]
+};
+
+// Placeholder for WEEK_REVENUE, TODAY_SCHEDULE, and BARBERS as they were removed from MockData import
+// and not fully replaced in the provided instruction.
+// This will cause runtime errors if not properly addressed by the user.
+const WEEK_REVENUE = [
+  { day: 'Mon', amount: 3000 },
+  { day: 'Tue', amount: 5000 },
+  { day: 'Wed', amount: 4500 },
+  { day: 'Thu', amount: 6000 },
+  { day: 'Fri', amount: 7000 },
+  { day: 'Sat', amount: 8000 },
+  { day: 'Sun', amount: 2000 },
+];
+
+const TODAY_SCHEDULE = [
+  { id: '1', customerName: 'John Doe', service: 'Haircut', amount: 1500, status: 'completed', time: '10:00 AM' },
+  { id: '2', customerName: 'Jane Smith', service: 'Beard Trim', amount: 800, status: 'completed', time: '11:30 AM' },
+  { id: '3', customerName: 'Peter Jones', service: 'Shave', amount: 700, status: 'pending', time: '01:00 PM' },
+];
+
+const BARBERS = [
+  { id: '1', name: 'Barber 1', rating: 4.8 },
+];
 
 const barber = BARBERS[0];
 

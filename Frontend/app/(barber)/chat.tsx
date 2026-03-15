@@ -4,9 +4,18 @@ import {
   TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-import { CHAT_CONVERSATIONS, CHAT_MESSAGES } from '@/constants/MockData';
 import Avatar from '@/components/Avatar';
 import ChatBubble from '@/components/ChatBubble';
+
+const CHAT_CONVERSATIONS = [
+  { id: 'c1', otherUser: { name: 'Danish Taimoor', initials: 'DT', color: '#4ADE80' }, bookingRef: 'BK-772', lastMessage: 'See you at 4 PM!', lastTime: '10:30 AM', unreadCount: 1 },
+];
+
+const CHAT_MESSAGES = [
+  { id: 'm1', senderId: 'c1', text: 'Hi, I might be 5 mins late.', time: '10:25 AM', isRead: true },
+  { id: 'm2', senderId: 'b1', text: 'No problem, thanks for letting me know!', time: '10:28 AM', isRead: true },
+  { id: 'm3', senderId: 'c1', text: 'See you at 4 PM!', time: '10:30 AM', isRead: false },
+];
 
 const QUICK_REPLIES = ["Your booking is confirmed!", "Running on time", "Please be on time", "See you soon!"];
 

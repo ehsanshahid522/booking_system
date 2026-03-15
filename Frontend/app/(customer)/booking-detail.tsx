@@ -2,7 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-import { BOOKINGS } from '@/constants/MockData';
+const BOOKINGS = [
+  { id: '1', barberName: 'Ali Raza', barberInitials: 'AR', barberColor: '#6366F1', serviceName: 'Premium Haircut', date: '2024-03-20', startTime: '10:00 AM', endTime: '10:30 AM', status: 'confirmed', amount: 700, paymentMethod: 'Cash', paymentStatus: 'Unpaid', notes: '' },
+];
 import Avatar from '@/components/Avatar';
 import StatusBadge from '@/components/StatusBadge';
 

@@ -5,16 +5,22 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-import { CHAT_CONVERSATIONS, CHAT_MESSAGES } from '@/constants/MockData';
+const CHAT_CONVERSATIONS = [
+  { id: 'c1', otherUser: { name: 'Ali Raza', initials: 'AR', color: '#6366F1' }, bookingRef: 'BK-772', lastMessage: 'See you then!', lastTime: 'Yesterday', unreadCount: 0 },
+];
+const CHAT_MESSAGES = [
+  { id: 'm1', senderId: 'c1', text: 'Hi Fahad, your booking is confirmed.', time: 'Yesterday', isRead: true },
+  { id: 'm2', senderId: 'u1', text: 'Great, see you then!', time: 'Yesterday', isRead: true },
+];
 import Avatar from '@/components/Avatar';
 import ChatBubble from '@/components/ChatBubble';
 
 const QUICK_REPLIES = ["I'm on my way", "Please confirm", "Running 10 min late", "See you soon"];
 
-type View = 'list' | 'chat';
+type ChatView = 'list' | 'chat';
 
 export default function ChatScreen() {
-  const [view, setView] = useState<'list' | 'chat'>('list');
+  const [view, setView] = useState<ChatView>('list');
   const [activeChat, setActiveChat] = useState(CHAT_CONVERSATIONS[0]);
   const [messages, setMessages] = useState(CHAT_MESSAGES);
   const [input, setInput] = useState('');

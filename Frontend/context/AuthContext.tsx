@@ -14,6 +14,14 @@ export interface User {
   profileImage?: string;
   shopName?: string;
   shopLocation?: string;
+  specialization?: string;
+  rating?: number;
+  reviewCount?: number;
+  experience?: number;
+  workingHours?: string;
+  bio?: string;
+  daysAvailable?: string[];
+  status?: string;
 }
 
 interface AuthContextType {

@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-import { BOOKINGS, BookingStatus } from '@/constants/MockData';
+import { BookingStatus } from '@/constants/types';
+
+const BOOKINGS: any[] = [
+  { id: '1', barberName: 'Ali Raza', shopName: "Ali's Premium Cuts", serviceName: 'Premium Haircut', date: '2024-03-20', time: '10:00 AM', status: 'confirmed', amount: 700 },
+];
 import BookingCard from '@/components/BookingCard';
 
 const TABS: { label: string; statuses: BookingStatus[] }[] = [

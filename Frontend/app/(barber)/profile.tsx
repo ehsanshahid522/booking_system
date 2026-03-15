@@ -2,29 +2,28 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-import { BARBERS, SERVICES } from '@/constants/MockData';
 import Avatar from '@/components/Avatar';
-import StatusBadge from '@/components/StatusBadge';
-
-const barber = BARBERS[0];
 
 export default function BarberProfileScreen() {
-  const { logout } = useAuth();
-  const [status, setStatus] = useState(barber.status);
+  const { user, logout } = useAuth();
+  const [status, setStatus] = useState(user?.status || 'available');
 
   const STATUS_OPTIONS = ['available', 'busy', 'off_duty'] as const;
+
+  const initials = user?.name?.substring(0, 2).toUpperCase() || 'BB';
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Profile Header */}
       <View style={styles.profileHeader}>
-        <Avatar initials={barber.initials} color={barber.color} size={88} fontSize={32} />
-        <Text style={styles.name}>{barber.name}</Text>
-        <Text style={styles.spec}>{barber.specialization}</Text>
+        <Avatar initials={initials} color={Colors.gold} size={88} fontSize={32} />
+        <Text style={styles.name}>{user?.name}</Text>
+        <Text style={styles.spec}>{user?.specialization || 'Professional Barber'}</Text>
         <View style={styles.ratingRow}>
           <Text style={styles.star}>★</Text>
-          <Text style={styles.rating}>{barber.rating} · {barber.reviewCount} reviews</Text>
+          <Text style={styles.rating}>{user?.rating || 5.0} · {user?.reviewCount || 0} reviews</Text>
         </View>
+        {user?.shopName ? <Text style={styles.shopDetail}>📍 {user.shopName}</Text> : null}
       </View>
 
       {/* Status Toggle */}
@@ -43,10 +42,10 @@ export default function BarberProfileScreen() {
       <View style={styles.infoCard}>
         <Text style={styles.sectionLabel}>Profile Info</Text>
         {[
-          { label: 'Experience', value: `${barber.experience} years`, icon: '⏱' },
-          { label: 'Working Hours', value: barber.workingHours, icon: '🕐' },
-          { label: 'Break Time', value: barber.breakTime, icon: '☕' },
-          { label: 'Price Range', value: barber.price, icon: '💰' },
+          { label: 'Experience', value: `${user?.experience || 0} years`, icon: '⏱' },
+          { label: 'Working Hours', value: user?.workingHours || '09:00 AM - 06:00 PM', icon: '🕐' },
+          { label: 'Location', value: user?.shopLocation || 'Not set', icon: '📍' },
+          { label: 'Email', value: user?.email, icon: '📧' },
         ].map(item => (
           <View key={item.label} style={styles.infoRow}>
             <Text style={styles.infoIcon}>{item.icon}</Text>
@@ -59,7 +58,7 @@ export default function BarberProfileScreen() {
       {/* Bio */}
       <View style={styles.bioCard}>
         <Text style={styles.sectionLabel}>Bio</Text>
-        <Text style={styles.bioText}>{barber.bio}</Text>
+        <Text style={styles.bioText}>{user?.bio || 'No bio provided yet.'}</Text>
         <TouchableOpacity style={styles.editBtn}>
           <Text style={styles.editBtnText}>✏️ Edit Bio</Text>
         </TouchableOpacity>
@@ -69,24 +68,15 @@ export default function BarberProfileScreen() {
       <View style={styles.daysSection}>
         <Text style={styles.sectionLabel}>Working Days</Text>
         <View style={styles.daysRow}>
-          {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day => (
-            <View key={day} style={[styles.dayChip, barber.daysAvailable.includes(day) && styles.dayActive]}>
-              <Text style={[styles.dayText, barber.daysAvailable.includes(day) && styles.dayActiveText]}>{day.slice(0, 2)}</Text>
-            </View>
-          ))}
+          {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day => {
+            const isAvailable = user?.daysAvailable?.includes(day);
+            return (
+              <View key={day} style={[styles.dayChip, isAvailable && styles.dayActive]}>
+                <Text style={[styles.dayText, isAvailable && styles.dayActiveText]}>{day.slice(0, 2)}</Text>
+              </View>
+            );
+          })}
         </View>
-      </View>
-
-      {/* Services */}
-      <View style={styles.servicesSection}>
-        <Text style={styles.sectionLabel}>My Services</Text>
-        {SERVICES.filter(s => barber.services.includes(s.id)).map(svc => (
-          <View key={svc.id} style={styles.serviceRow}>
-            <Text style={styles.svcIcon}>{svc.icon}</Text>
-            <Text style={styles.svcName}>{svc.name}</Text>
-            <Text style={styles.svcPrice}>Rs. {svc.price.toLocaleString()}</Text>
-          </View>
-        ))}
       </View>
 
       {/* Logout */}
@@ -110,6 +100,7 @@ const styles = StyleSheet.create({
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   star: { color: Colors.gold, fontSize: 16 },
   rating: { color: Colors.textSecondary, fontSize: 13 },
+  shopDetail: { color: Colors.gold, fontSize: 14, fontWeight: '600', marginTop: 4 },
   statusSection: { padding: Spacing.lg },
   sectionLabel: { color: Colors.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: Spacing.sm },
   statusRow: { flexDirection: 'row', gap: Spacing.sm },
@@ -117,7 +108,7 @@ const styles = StyleSheet.create({
   statusBtnActive: { borderColor: Colors.gold, backgroundColor: Colors.gold + '18' },
   statusBtnText: { color: Colors.textSecondary, fontSize: 12, fontWeight: '600' },
   infoCard: { marginHorizontal: Spacing.lg, backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.md },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
   infoIcon: { fontSize: 18, width: 28 },
   infoLabel: { flex: 1, color: Colors.textSecondary, fontSize: 14 },
   infoValue: { color: Colors.text, fontSize: 14, fontWeight: '600' },
@@ -131,11 +122,6 @@ const styles = StyleSheet.create({
   dayActive: { backgroundColor: Colors.gold + '22', borderColor: Colors.gold },
   dayText: { color: Colors.textMuted, fontSize: 11, fontWeight: '600' },
   dayActiveText: { color: Colors.gold },
-  servicesSection: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.lg },
-  serviceRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  svcIcon: { fontSize: 22 },
-  svcName: { flex: 1, color: Colors.text, fontSize: 14, fontWeight: '600' },
-  svcPrice: { color: Colors.gold, fontSize: 13, fontWeight: '700' },
   logoutBtn: { marginHorizontal: Spacing.lg, backgroundColor: Colors.error + '18', borderRadius: Radius.md, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: Colors.error + '44' },
   logoutText: { color: Colors.error, fontSize: 15, fontWeight: '700' },
 });
