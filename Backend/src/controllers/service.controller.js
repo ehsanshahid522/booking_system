@@ -33,7 +33,7 @@ export const updateService = async (req, res, next) => {
     const service = await Service.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!service) {
@@ -54,7 +54,7 @@ export const deleteService = async (req, res, next) => {
     const service = await Service.findByIdAndUpdate(
       req.params.id,
       { isActive: false },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!service) {

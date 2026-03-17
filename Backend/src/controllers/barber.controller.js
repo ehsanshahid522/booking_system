@@ -40,38 +40,43 @@ export const getBarberById = async (req, res, next) => {
 // @access  Private (Barber only)
 export const updateBarberProfile = async (req, res, next) => {
   try {
-    const { 
-      shopName,
-      shopLocation,
-      bio, 
-      experience, 
-      specialization, 
-      workingHours, 
-      breakTime, 
-      daysAvailable, 
-      services 
-    } = req.body;
+    const updateFields = {};
+    const allowedFields = [
+      'shopName',
+      'shopLocation',
+      'bio',
+      'experience',
+      'specialization',
+      'workingHours',
+      'breakTime',
+      'daysAvailable',
+      'services'
+    ];
+
+    // Only add fields that are present in the request body
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateFields[field] = req.body[field];
+      }
+    });
+
+    console.log(`Updating profile for barber ${req.user._id}:`, updateFields);
 
     const updatedBarber = await User.findByIdAndUpdate(
-      req.user.id,
+      req.user._id,
       {
-        $set: {
-          shopName,
-          shopLocation,
-          bio,
-          experience,
-          specialization,
-          workingHours,
-          breakTime,
-          daysAvailable,
-          services
-        }
+        $set: updateFields
       },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).select('-password');
+
+    if (!updatedBarber) {
+      return new ApiResponse(res, 404, 'Barber not found');
+    }
 
     new ApiResponse(res, 200, 'Profile updated successfully', { barber: updatedBarber });
   } catch (error) {
+    console.error('Update Profile Error:', error);
     next(error);
   }
 };
@@ -83,28 +88,46 @@ export const updateBarberServices = async (req, res, next) => {
   try {
     const { serviceId, customPrice, isActive = true } = req.body;
 
-    const barber = await User.findById(req.user.id);
-    if (!barber) return new ApiResponse(res, 404, 'Barber not found');
+    // First check if the barber exists
+    const barberCheck = await User.findById(req.user._id);
+    if (!barberCheck) return new ApiResponse(res, 404, 'Barber not found');
 
-    // Check if the service already exists in array
-    const serviceIndex = barber.services.findIndex(s => s.service.toString() === serviceId);
+    // Check if the service already exists
+    const serviceIndex = barberCheck.services.findIndex(s => s.service.toString() === serviceId);
+
+    let updatedBarber;
 
     if (serviceIndex > -1) {
-      // Update existing
-      barber.services[serviceIndex].customPrice = customPrice;
-      barber.services[serviceIndex].isActive = isActive;
+      // Update existing service
+      updatedBarber = await User.findOneAndUpdate(
+        { _id: req.user._id, 'services.service': serviceId },
+        { 
+          $set: { 
+            'services.$.customPrice': customPrice,
+            'services.$.isActive': isActive 
+          } 
+        },
+        { returnDocument: 'after' }
+      );
     } else {
-      // Add new
-      barber.services.push({ service: serviceId, customPrice, isActive });
+      // Add new service
+      updatedBarber = await User.findByIdAndUpdate(
+        req.user._id,
+        { 
+          $push: { 
+            services: { service: serviceId, customPrice, isActive } 
+          } 
+        },
+        { returnDocument: 'after' }
+      );
     }
 
-    await barber.save();
-    
     // Return populated data
-    await barber.populate('services.service', 'name category duration icon');
+    await updatedBarber.populate('services.service', 'name category duration icon');
 
-    new ApiResponse(res, 200, 'Services updated successfully', { services: barber.services });
+    new ApiResponse(res, 200, 'Services updated successfully', { services: updatedBarber.services });
   } catch (error) {
+    console.error('Update Services Error:', error);
     next(error);
   }
 };
@@ -123,7 +146,7 @@ export const updateBarberStatus = async (req, res, next) => {
     const barber = await User.findByIdAndUpdate(
       req.user.id,
       { $set: { status } },
-      { new: true }
+      { returnDocument: 'after' }
     ).select('status name');
 
     // Emit socket event if needed

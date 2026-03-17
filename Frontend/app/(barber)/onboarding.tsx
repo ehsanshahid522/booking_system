@@ -7,7 +7,7 @@ import apiClient from '@/api/client';
 
 export default function BarberOnboardingScreen() {
   const router = useRouter();
-  const { user, login } = useAuth();
+  const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [errorVar, setErrorVar] = useState('');
 
@@ -28,10 +28,12 @@ export default function BarberOnboardingScreen() {
 
     try {
       // Intentionally using the new unified profile route to update shopName
-      await apiClient.put('/barbers/profile', form);
+      const res = await apiClient.put('/barbers/profile', form);
       
-      // Update local auth context to reflect changes (optional, but good for UI sync)
-      // Usually, it's better to refetch /me or just trust the local redirect
+      // Update local auth context to reflect changes
+      if (res.data?.data?.barber) {
+        updateUser(res.data.data.barber);
+      }
       
       router.replace('/(barber)');
     } catch (err: any) {

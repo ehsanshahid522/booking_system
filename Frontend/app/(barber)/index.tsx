@@ -89,10 +89,23 @@ export default function BarberDashboard() {
         serviceId: selectedService._id,
         customPrice: parseFloat(customPrice),
       });
+
+      // Update local state immediately for a snappy UI
+      const newServiceEntry = {
+        _id: Math.random().toString(), // Temp ID until next full fetch
+        service: selectedService,
+        customPrice: parseFloat(customPrice),
+        isActive: true
+      };
+      
+      setMyServices(prev => [...prev, newServiceEntry]);
+      
       Alert.alert('Success', `${selectedService.name} added to your services!`);
       setShowAddService(false);
       setSelectedService(null);
       setCustomPrice('');
+      
+      // Still call fetchData to ensure backend sync is perfect in background
       fetchData();
     } catch (e: any) {
       Alert.alert('Error', e.response?.data?.message || 'Failed to add service');
@@ -182,9 +195,9 @@ export default function BarberDashboard() {
         pending.slice(0, 3).map(req => (
           <View key={req._id} style={styles.requestCard}>
             <View style={styles.requestInfo}>
-              <Text style={styles.reqCustomer}>{req.customer?.name}</Text>
-              <Text style={styles.reqService}>{req.service?.name}</Text>
-              <Text style={styles.reqDate}>📅 {req.date} · {req.startTime}</Text>
+              <Text style={styles.reqCustomer}>{req.customer?.name || 'Unknown Customer'}</Text>
+              <Text style={styles.reqService}>{req.service?.name || 'Unknown Service'}</Text>
+              <Text style={styles.reqDate}>📅 {req.date || 'No Date'} · {req.startTime || 'No Time'}</Text>
             </View>
             <View style={styles.reqButtons}>
               <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(req._id)}>
@@ -219,8 +232,8 @@ export default function BarberDashboard() {
             <View style={styles.scheduleLine} />
             <View style={styles.scheduleCard}>
               <View style={styles.scheduleInfo}>
-                <Text style={styles.customerName}>{appt.customer?.name}</Text>
-                <Text style={styles.serviceName}>{appt.service?.name}</Text>
+                <Text style={styles.customerName}>{appt.customer?.name || 'Unknown Customer'}</Text>
+                <Text style={styles.serviceName}>{appt.service?.name || 'Unknown Service'}</Text>
               </View>
               <Text style={[styles.scheduleAmount, { color: appt.status === 'completed' ? Colors.success : Colors.gold }]}>
                 Rs. {appt.amount.toLocaleString()}

@@ -2,8 +2,13 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, LogBox } from 'react-native';
 import { Colors } from '@/constants/Colors';
+
+// Ignore specific benign warnings
+LogBox.ignoreLogs([
+  'Cannot record touch end without a touch start',
+]);
 
 function RootLayoutNav() {
   const { user, isLoading } = useAuth();
