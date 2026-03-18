@@ -5,10 +5,19 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { View, ActivityIndicator, LogBox } from 'react-native';
 import { Colors } from '@/constants/Colors';
 
-// Ignore specific benign warnings
-LogBox.ignoreLogs([
-  'Cannot record touch end without a touch start',
-]);
+// Ignore specific benign warnings for React Native and Web
+LogBox.ignoreLogs(['Cannot record touch end without a touch start']);
+
+// For Web: intercept console.error to prevent the Expo error overlay
+if (typeof console !== 'undefined') {
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    if (typeof args[0] === 'string' && args[0].includes('Cannot record touch end without a touch start')) {
+      return; 
+    }
+    originalConsoleError(...args);
+  };
+}
 
 function RootLayoutNav() {
   const { user, isLoading } = useAuth();
