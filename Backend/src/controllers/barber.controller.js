@@ -144,7 +144,7 @@ export const updateBarberStatus = async (req, res, next) => {
     }
 
     const barber = await User.findByIdAndUpdate(
-      req.user.id,
+      req.user._id,
       { $set: { status } },
       { returnDocument: 'after' }
     ).select('status name');

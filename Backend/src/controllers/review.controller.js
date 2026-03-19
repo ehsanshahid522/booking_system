@@ -14,7 +14,7 @@ export const createReview = async (req, res, next) => {
       return new ApiResponse(res, 404, 'Booking not found');
     }
 
-    if (booking.customer.toString() !== req.user.id) {
+    if (booking.customer.toString() !== req.user._id.toString()) {
       return new ApiResponse(res, 403, 'Not authorized to review this booking');
     }
 
@@ -25,7 +25,7 @@ export const createReview = async (req, res, next) => {
 
     const review = await Review.create({
       booking: bookingId,
-      customer: req.user.id,
+      customer: req.user._id,
       barber: booking.barber,
       rating,
       comment

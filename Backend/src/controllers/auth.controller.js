@@ -89,7 +89,7 @@ export const login = async (req, res, next) => {
 // @access  Private
 export const getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user._id);
     if (!user) {
       return new ApiResponse(res, 404, 'User not found');
     }

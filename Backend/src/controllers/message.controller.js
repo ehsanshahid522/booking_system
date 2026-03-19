@@ -9,7 +9,7 @@ export const sendMessage = async (req, res, next) => {
     const { receiverId, text, bookingId } = req.body;
 
     const message = await Message.create({
-      sender: req.user.id,
+      sender: req.user._id,
       receiver: receiverId,
       bookingId,
       text
@@ -35,7 +35,7 @@ export const sendMessage = async (req, res, next) => {
 export const getConversation = async (req, res, next) => {
   try {
     const { userId } = req.params;
-    const currentUserId = req.user.id;
+    const currentUserId = req.user._id;
 
     const messages = await Message.find({
       $or: [
@@ -63,7 +63,7 @@ export const getConversation = async (req, res, next) => {
 // @access  Private
 export const getConversationsList = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
     
     // Find all distinct users the current user has chatted with
     const messages = await Message.find({

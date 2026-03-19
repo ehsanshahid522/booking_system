@@ -6,7 +6,7 @@ import ApiResponse from '../utils/ApiResponse.js';
 // @access  Private
 export const getNotifications = async (req, res, next) => {
   try {
-    const notifications = await Notification.find({ user: req.user.id })
+    const notifications = await Notification.find({ user: req.user._id })
       .sort('-createdAt')
       .limit(50);
 
@@ -22,7 +22,7 @@ export const getNotifications = async (req, res, next) => {
 export const markAsRead = async (req, res, next) => {
   try {
     const notification = await Notification.findOneAndUpdate(
-      { _id: req.params.id, user: req.user.id },
+      { _id: req.params.id, user: req.user._id },
       { isRead: true },
       { new: true }
     );
@@ -43,7 +43,7 @@ export const markAsRead = async (req, res, next) => {
 export const markAllAsRead = async (req, res, next) => {
   try {
     await Notification.updateMany(
-      { user: req.user.id, isRead: false },
+      { user: req.user._id, isRead: false },
       { $set: { isRead: true } }
     );
 

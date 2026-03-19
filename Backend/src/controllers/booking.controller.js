@@ -42,7 +42,7 @@ export const createBooking = async (req, res, next) => {
     }
 
     const bookingStatus = req.body.status === 'manual_offline' ? 'manual_offline' : 'pending';
-    const customerId = req.user ? req.user.id : barberId; // If manual, customer is the barber themselves
+    const customerId = req.user ? req.user._id : barberId; // If manual, customer is the barber themselves
 
     const booking = await Booking.create({
       customer: customerId,
@@ -78,8 +78,8 @@ export const createBooking = async (req, res, next) => {
 export const getMyBookings = async (req, res, next) => {
   try {
     const filter = req.user.role === 'customer' 
-      ? { customer: req.user.id } 
-      : { barber: req.user.id };
+      ? { customer: req.user._id } 
+      : { barber: req.user._id };
 
     const bookings = await Booking.find(filter)
       .populate('customer', 'name avatar phone')
@@ -111,7 +111,7 @@ export const updateBookingStatus = async (req, res, next) => {
     }
 
     // Only the assigned barber (or admin) can update the booking
-    if (req.user.role === 'barber' && booking.barber.toString() !== req.user.id) {
+    if (req.user.role === 'barber' && booking.barber.toString() !== req.user._id.toString()) {
       return new ApiResponse(res, 403, 'Not authorized to update this booking');
     }
 

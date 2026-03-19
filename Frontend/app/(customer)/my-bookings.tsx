@@ -1,12 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import { BookingStatus } from '@/constants/types';
-
-const BOOKINGS: any[] = [
-  { id: '1', barberName: 'Ali Raza', shopName: "Ali's Premium Cuts", serviceName: 'Premium Haircut', date: '2024-03-20', time: '10:00 AM', status: 'confirmed', amount: 700 },
-];
+import apiClient from '@/api/client';
 import BookingCard from '@/components/BookingCard';
 
 const TABS: { label: string; statuses: BookingStatus[] }[] = [
@@ -18,8 +15,40 @@ const TABS: { label: string; statuses: BookingStatus[] }[] = [
 export default function MyBookingsScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(0);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const filtered = BOOKINGS.filter(b => TABS[activeTab].statuses.includes(b.status));
+  const fetchBookings = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/bookings/my');
+      setBookings(res.data?.data?.bookings || []);
+    } catch (e) {
+      console.error('Fetch bookings error:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchBookings();
+  };
+
+  const filtered = bookings.filter(b => TABS[activeTab].statuses.includes(b.status));
+
+  if (loading && !refreshing) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={Colors.gold} size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -38,14 +67,19 @@ export default function MyBookingsScreen() {
             <Text style={[styles.tabText, activeTab === i && styles.tabTextActive]}>{t.label}</Text>
             <View style={[styles.tabBadge, activeTab === i && styles.tabBadgeActive]}>
               <Text style={[styles.tabBadgeText, activeTab === i && { color: Colors.black }]}>
-                {BOOKINGS.filter(b => t.statuses.includes(b.status)).length}
+                {bookings.filter(b => t.statuses.includes(b.status)).length}
               </Text>
             </View>
           </TouchableOpacity>
         ))}
       </View>
 
-      <ScrollView style={styles.list} contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.list} 
+        contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: 24 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} />}
+      >
         {filtered.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>📅</Text>
@@ -60,14 +94,23 @@ export default function MyBookingsScreen() {
         ) : (
           filtered.map(b => (
             <BookingCard
-              key={b.id}
-              {...b}
-              onPress={() => router.push({ pathname: '/(customer)/booking-detail' as any, params: { bookingId: b.id } })}
+              key={b._id}
+              id={b._id}
+              barberName={b.barber?.name}
+              shopName={b.barber?.shopName || "Barber Shop"}
+              serviceName={b.service?.name}
+              date={b.date}
+              time={b.startTime}
+              status={b.status}
+              amount={b.amount}
+              onPress={() => router.push({ pathname: '/(customer)/booking-detail' as any, params: { bookingId: b._id } })}
             />
           ))
         )}
       </ScrollView>
     </View>
+  );
+}    </View>
   );
 }
 

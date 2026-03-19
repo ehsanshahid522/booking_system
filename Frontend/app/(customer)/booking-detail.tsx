@@ -1,25 +1,69 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-const BOOKINGS = [
-  { id: '1', barberName: 'Ali Raza', barberInitials: 'AR', barberColor: '#6366F1', serviceName: 'Premium Haircut', date: '2024-03-20', startTime: '10:00 AM', endTime: '10:30 AM', status: 'confirmed', amount: 700, paymentMethod: 'Cash', paymentStatus: 'Unpaid', notes: '' },
-];
+import apiClient from '@/api/client';
 import Avatar from '@/components/Avatar';
 import StatusBadge from '@/components/StatusBadge';
 
 export default function BookingDetailScreen() {
   const router = useRouter();
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
-  const booking = BOOKINGS.find(b => b.id === bookingId) || BOOKINGS[0];
-  const formattedDate = new Date(booking.date).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const [booking, setBooking] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchBooking = useCallback(async () => {
+    try {
+      // In this API, we get all and filter or have a specific route
+      const res = await apiClient.get('/bookings/my');
+      const found = res.data?.data?.bookings?.find((b: any) => b._id === bookingId);
+      if (found) {
+        setBooking(found);
+      } else {
+        Alert.alert('Error', 'Booking not found');
+        router.back();
+      }
+    } catch (e) {
+      console.error('Fetch booking detail error:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [bookingId]);
+
+  useEffect(() => {
+    if (bookingId) fetchBooking();
+  }, [bookingId, fetchBooking]);
 
   function handleCancel() {
     Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking?', [
       { text: 'No', style: 'cancel' },
-      { text: 'Cancel Booking', style: 'destructive', onPress: () => router.replace('/(customer)/my-bookings' as any) },
+      { 
+        text: 'Cancel Booking', 
+        style: 'destructive', 
+        onPress: async () => {
+          try {
+            await apiClient.put(`/bookings/${bookingId}/status`, { status: 'cancelled' });
+            Alert.alert('Cancelled', 'Your booking has been cancelled.');
+            router.replace('/(customer)/my-bookings' as any);
+          } catch (e: any) {
+            Alert.alert('Error', e.response?.data?.message || 'Could not cancel booking');
+          }
+        } 
+      },
     ]);
   }
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={Colors.gold} size="large" />
+      </View>
+    );
+  }
+
+  if (!booking) return null;
+
+  const formattedDate = new Date(booking.date).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
     <View style={styles.container}>
@@ -32,7 +76,7 @@ export default function BookingDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: Spacing.lg }}>
         {/* Status Banner */}
         <View style={styles.statusBanner}>
-          <Text style={styles.bookingId}># {booking.id.toUpperCase()}</Text>
+          <Text style={styles.bookingId}># {booking._id.slice(-6).toUpperCase()}</Text>
           <StatusBadge status={booking.status} />
         </View>
 
@@ -40,10 +84,10 @@ export default function BookingDetailScreen() {
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Barber</Text>
           <View style={styles.barberRow}>
-            <Avatar initials={booking.barberInitials} color={booking.barberColor} size={52} fontSize={18} />
+            <Avatar initials={booking.barber?.name?.charAt(0)} color={Colors.gold} size={52} fontSize={18} />
             <View>
-              <Text style={styles.barberName}>{booking.barberName}</Text>
-              <Text style={styles.barberService}>{booking.serviceName}</Text>
+              <Text style={styles.barberName}>{booking.barber?.name}</Text>
+              <Text style={styles.barberService}>{booking.service?.name}</Text>
             </View>
           </View>
         </View>
@@ -54,7 +98,7 @@ export default function BookingDetailScreen() {
           {[
             { icon: '📅', label: 'Date', value: formattedDate },
             { icon: '🕐', label: 'Time', value: `${booking.startTime} – ${booking.endTime}` },
-            { icon: '✂️', label: 'Service', value: booking.serviceName },
+            { icon: '✂️', label: 'Service', value: booking.service?.name },
             { icon: '💬', label: 'Notes', value: booking.notes || 'No special instructions' },
           ].map(item => (
             <View key={item.label} style={styles.detailRow}>
@@ -69,9 +113,9 @@ export default function BookingDetailScreen() {
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Payment</Text>
           {[
-            { label: 'Amount', value: `Rs. ${booking.amount.toLocaleString()}` },
-            { label: 'Method', value: booking.paymentMethod },
-            { label: 'Status', value: booking.paymentStatus },
+            { label: 'Amount', value: `Rs. ${booking.amount?.toLocaleString()}` },
+            { label: 'Method', value: 'Cash at Shop' },
+            { label: 'Status', value: booking.status === 'completed' ? 'Paid' : 'Unpaid' },
           ].map(item => (
             <View key={item.label} style={styles.detailRow}>
               <Text style={styles.detailLabel}>{item.label}</Text>
@@ -83,7 +127,7 @@ export default function BookingDetailScreen() {
         {/* Actions */}
         {(booking.status === 'pending' || booking.status === 'confirmed') && (
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.chatBtn} onPress={() => router.push('/(customer)/chat' as any)}>
+            <TouchableOpacity style={styles.chatBtn} onPress={() => router.push({ pathname: '/(customer)/chat', params: { otherUserId: booking.barber?._id } } as any)}>
               <Text style={styles.chatBtnText}>💬 Message Barber</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
