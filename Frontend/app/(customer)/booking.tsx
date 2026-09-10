@@ -48,8 +48,9 @@ export default function BookingScreen() {
         
         setBarbers(Array.isArray(bData) ? bData : []);
         setServices(Array.isArray(sData) ? sData : []);
-      } catch (e) {
+      } catch (e: any) {
         console.error('Fetch error:', e);
+        Alert.alert('Error', e.response?.data?.message || 'Could not load booking data');
       } finally {
         setLoading(false);
       }
@@ -68,7 +69,7 @@ export default function BookingScreen() {
   const bService = barber?.services?.find((s: any) => 
     (s.service?._id || s.service) === selectedService
   );
-  const realPrice = bService ? bService.customPrice : (svc?.price || 0);
+  const realPrice = bService?.customPrice ?? (svc?.price || 0);
 
   function canNext() {
     if (step === 0) return !!selectedService;
@@ -242,7 +243,7 @@ export default function BookingScreen() {
                 { label: '📅 Date', value: selectedDate ? new Date(selectedDate).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long' }) : '-' },
                 { label: '🕐 Time', value: selectedSlot || '-' },
                 { label: '⏱ Duration', value: `${svc?.duration} min` },
-                { label: '💰 Price', value: `Rs. ${realPrice.toLocaleString()}` },
+                { label: '💰 Price', value: `Rs. ${(realPrice || 0).toLocaleString()}` },
               ].map(item => (
                 <View key={item.label} style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>{item.label}</Text>

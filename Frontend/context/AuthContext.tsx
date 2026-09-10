@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       const response = await apiClient.get('/auth/me');
-      setUser(response.data.data);
+      setUser(response.data.data.user || response.data.data);
     } catch (e) {
       console.error('Failed to load user', e);
       await AsyncStorage.removeItem('auth_token');
@@ -62,20 +62,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function login(email: string, password: string): Promise<boolean> {
     try {
-      const res = await apiClient.post('/auth/login', { email, password });
+      const res = await apiClient.post('/auth/login', { 
+        email: email.trim(), 
+        password: password.trim() 
+      });
       const { user, token } = res.data.data;
       await AsyncStorage.setItem('auth_token', token);
       setUser(user);
       return true;
     } catch (error: any) {
-      console.error('Login error:', error.response?.data?.message || error.message);
+      const msg = error.response?.data?.message || 'Login failed. Please check your credentials.';
+      Alert.alert('Login Error', msg);
+      console.error('Login error:', msg);
       return false;
     }
   }
 
   async function signup(name: string, email: string, password: string, role: UserRole, phone?: string): Promise<boolean> {
     try {
-      const res = await apiClient.post('/auth/signup', { name, email, password, role, phone });
+      const res = await apiClient.post('/auth/signup', { 
+        name: name.trim(), 
+        email: email.trim(), 
+        password: password.trim(), 
+        role, 
+        phone: phone?.trim() 
+      });
       const { user, token } = res.data.data;
       await AsyncStorage.setItem('auth_token', token);
       setUser(user);

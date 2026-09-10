@@ -46,7 +46,7 @@ export default function SignupScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
         {/* Back */}
-        <TouchableOpacity style={styles.back} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.back} onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login' as any)}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
 

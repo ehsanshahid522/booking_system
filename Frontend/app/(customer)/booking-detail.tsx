@@ -23,8 +23,9 @@ export default function BookingDetailScreen() {
         Alert.alert('Error', 'Booking not found');
         router.back();
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Fetch booking detail error:', e);
+      Alert.alert('Error', e.response?.data?.message || 'Could not fetch booking details');
     } finally {
       setLoading(false);
     }

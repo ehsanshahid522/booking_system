@@ -6,7 +6,10 @@ import { View, ActivityIndicator, LogBox } from 'react-native';
 import { Colors } from '@/constants/Colors';
 
 // Ignore specific benign warnings for React Native and Web
-LogBox.ignoreLogs(['Cannot record touch end without a touch start']);
+LogBox.ignoreLogs([
+  'Cannot record touch end without a touch start',
+  'props.pointerEvents is deprecated',
+]);
 
 // For Web: intercept console.error to prevent the Expo error overlay
 if (typeof console !== 'undefined') {
@@ -27,10 +30,10 @@ function RootLayoutNav() {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuth = segments[0] === '(auth)';
-    const inCustomer = segments[0] === '(customer)';
-    const inBarber = segments[0] === '(barber)';
-    const inAdmin = segments[0] === '(admin)';
+    const inAuth = (segments[0] as string) === '(auth)';
+    const inCustomer = (segments[0] as string) === '(customer)';
+    const inBarber = (segments[0] as string) === '(barber)';
+    const inAdmin = (segments[0] as string) === '(admin)';
 
     if (!user) {
       if (!inAuth) router.replace('/(auth)/onboarding' as any);

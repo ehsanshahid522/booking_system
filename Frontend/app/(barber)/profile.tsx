@@ -3,12 +3,28 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { useAuth } from '@/context/AuthContext';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import Avatar from '@/components/Avatar';
+import apiClient from '@/api/client';
 
 export default function BarberProfileScreen() {
   const { user, logout } = useAuth();
   const [status, setStatus] = useState(user?.status || 'available');
+  const [updating, setUpdating] = useState(false);
 
   const STATUS_OPTIONS = ['available', 'busy', 'off_duty'] as const;
+
+  const updateStatus = async (newStatus: typeof STATUS_OPTIONS[number]) => {
+    if (newStatus === status) return;
+    setUpdating(true);
+    try {
+      await apiClient.put('/barbers/status', { status: newStatus });
+      setStatus(newStatus);
+      Alert.alert('Status Updated', `You are now ${newStatus.replace('_', ' ')}`);
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.message || 'Failed to update status');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const initials = user?.name?.substring(0, 2).toUpperCase() || 'BB';
 
@@ -31,7 +47,12 @@ export default function BarberProfileScreen() {
         <Text style={styles.sectionLabel}>My Status</Text>
         <View style={styles.statusRow}>
           {STATUS_OPTIONS.map(s => (
-            <TouchableOpacity key={s} style={[styles.statusBtn, status === s && styles.statusBtnActive]} onPress={() => setStatus(s)}>
+            <TouchableOpacity 
+              key={s} 
+              style={[styles.statusBtn, status === s && styles.statusBtnActive]} 
+              onPress={() => updateStatus(s)}
+              disabled={updating}
+            >
               <Text style={styles.statusBtnText}>{s === 'available' ? '🟢 Online' : s === 'busy' ? '🟡 Busy' : '🔴 Off Duty'}</Text>
             </TouchableOpacity>
           ))}

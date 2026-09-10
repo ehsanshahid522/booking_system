@@ -91,7 +91,10 @@ export default function ScheduleScreen() {
       const barber = profileRes.data?.data?.barber;
       if (barber?.workingHours) setWorkingHours(barber.workingHours);
       if (barber?.services) setMyServices(barber.services);
-    } catch (e) { console.error('Schedule fetch:', e); }
+    } catch (e: any) { 
+      console.error('Schedule fetch:', e); 
+      Alert.alert('Error', e.response?.data?.message || 'Could not fetch schedule');
+    }
     finally { setLoading(false); setRefreshing(false); }
   }, [user?._id]);
 

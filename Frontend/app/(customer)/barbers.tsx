@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import apiClient from '@/api/client';
@@ -20,8 +20,9 @@ export default function BarbersScreen() {
         const res = await apiClient.get('/barbers');
         const data = res.data?.data?.barbers || res.data?.data || [];
         setBarbers(Array.isArray(data) ? data : []);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to fetch barbers', error);
+        Alert.alert('Error', error.response?.data?.message || 'Could not fetch barbers');
       } finally {
         setLoading(false);
       }

@@ -27,9 +27,8 @@ export default function LoginScreen() {
       return;
     }
     setLoading(true);
-    const ok = await login(email, password);
+    await login(email, password);
     setLoading(false);
-    if (!ok) Alert.alert('Login Failed', 'Please check your credentials.');
   }
 
 
@@ -57,6 +56,7 @@ export default function LoginScreen() {
             style={styles.input}
             placeholder="Enter your email"
             placeholderTextColor={Colors.textMuted}
+            nativeID="email-input"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -70,6 +70,7 @@ export default function LoginScreen() {
               style={styles.passInput}
               placeholder="Enter your password"
               placeholderTextColor={Colors.textMuted}
+              nativeID="password-input"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPass}
@@ -88,12 +89,31 @@ export default function LoginScreen() {
             <Text style={styles.loginBtnText}>{loading ? 'Logging in...' : 'Login'}</Text>
           </TouchableOpacity>
 
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR QUICK LOGIN</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Demo Accounts */}
+          <View style={styles.demoRow}>
+            <TouchableOpacity style={styles.demoBtn} onPress={() => { setEmail('customer@test.com'); setPassword('password123'); }}>
+              <Text style={styles.demoIcon}>👤</Text>
+              <Text style={styles.demoBtnText}>Demo Customer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.demoBtn} onPress={() => { setEmail('ali@test.com'); setPassword('password123'); }}>
+              <Text style={styles.demoIcon}>✂️</Text>
+              <Text style={styles.demoBtnText}>Demo Barber</Text>
+            </TouchableOpacity>
+          </View>
+
 
         </View>
 
         {/* Sign Up Link */}
         <TouchableOpacity style={styles.signupLink} onPress={() => router.push('/(auth)/signup' as any)}>
-          <Text style={styles.signupText}>Don't have an account? <Text style={{ color: Colors.gold, fontWeight: '700' }}>Sign Up</Text></Text>
+          <Text style={styles.signupText}>Don&apos;t have an account? <Text style={{ color: Colors.gold, fontWeight: '700' }}>Sign Up</Text></Text>
         </TouchableOpacity>
 
       </ScrollView>

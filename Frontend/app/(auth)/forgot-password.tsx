@@ -15,13 +15,13 @@ export default function ForgotPasswordScreen() {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity style={styles.back} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.back} onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login' as any)}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
         <View style={styles.center}>
           <Text style={styles.icon}>🔐</Text>
           <Text style={styles.title}>Forgot Password?</Text>
-          <Text style={styles.subtitle}>Enter your email address and we'll send you a link to reset your password.</Text>
+          <Text style={styles.subtitle}>Enter your email address and we&apos;ll send you a link to reset your password.</Text>
         </View>
         <View style={styles.form}>
           <Text style={styles.label}>Email Address</Text>

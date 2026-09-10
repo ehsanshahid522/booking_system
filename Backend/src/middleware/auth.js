@@ -1,8 +1,10 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import ApiError from '../utils/ApiError.js';
+import asyncHandler from './asyncHandler.js';
 
 // Protect routes
-export const protect = async (req, res, next) => {
+export const protect = asyncHandler(async (req, res, next) => {
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
@@ -11,7 +13,7 @@ export const protect = async (req, res, next) => {
 
   // Make sure token exists
   if (!token) {
-    return res.status(401).json({ success: false, message: 'Not authorized to access this route' });
+    throw new ApiError(401, 'Not authorized to access this route');
   }
 
   try {
@@ -21,27 +23,24 @@ export const protect = async (req, res, next) => {
     req.user = await User.findById(decoded.id);
 
     if (!req.user) {
-      return res.status(401).json({ success: false, message: 'User essentially not found' });
+      throw new ApiError(401, 'User not found');
     }
 
     if (!req.user.isActive) {
-      return res.status(401).json({ success: false, message: 'Your account has been deactivated' });
+      throw new ApiError(401, 'Your account has been deactivated');
     }
 
     next();
   } catch (err) {
-    return res.status(401).json({ success: false, message: 'Not authorized to access this route' });
+    throw new ApiError(401, 'Not authorized to access this route');
   }
-};
+});
 
 // Grant access to specific roles
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: `User role ${req.user.role} is not authorized to access this route`
-      });
+      throw new ApiError(403, `User role ${req.user.role} is not authorized to access this route`);
     }
     next();
   };

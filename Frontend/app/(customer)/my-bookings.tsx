@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import { BookingStatus } from '@/constants/types';
@@ -23,8 +23,9 @@ export default function MyBookingsScreen() {
     try {
       const res = await apiClient.get('/bookings/my');
       setBookings(res.data?.data?.bookings || []);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Fetch bookings error:', e);
+      Alert.alert('Error', e.response?.data?.message || 'Could not fetch bookings');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -96,21 +97,20 @@ export default function MyBookingsScreen() {
             <BookingCard
               key={b._id}
               id={b._id}
-              barberName={b.barber?.name}
-              shopName={b.barber?.shopName || "Barber Shop"}
-              serviceName={b.service?.name}
+              barberName={b.barber?.name || 'Barber'}
+              barberInitials={b.barber?.name?.substring(0, 2).toUpperCase() || 'BB'}
+              barberColor={Colors.gold}
+              serviceName={b.service?.name || 'Service'}
               date={b.date}
-              time={b.startTime}
+              startTime={b.startTime || '10:00 AM'}
               status={b.status}
-              amount={b.amount}
+              amount={b.amount || 0}
               onPress={() => router.push({ pathname: '/(customer)/booking-detail' as any, params: { bookingId: b._id } })}
             />
           ))
         )}
       </ScrollView>
     </View>
-  );
-}    </View>
   );
 }
 

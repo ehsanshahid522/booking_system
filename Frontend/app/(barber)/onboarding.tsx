@@ -52,7 +52,7 @@ export default function BarberOnboardingScreen() {
         
         <View style={styles.header}>
           <Text style={styles.title}>Welcome, {user?.name}!</Text>
-          <Text style={styles.subtitle}>Let's set up your shop profile so customers can find you.</Text>
+          <Text style={styles.subtitle}>Let&apos;s set up your shop profile so customers can find you.</Text>
         </View>
 
         {errorVar ? <Text style={styles.errorText}>{errorVar}</Text> : null}

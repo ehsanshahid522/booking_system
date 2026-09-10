@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import apiClient from '@/api/client';
@@ -25,8 +25,9 @@ export default function BarberDetailScreen() {
       try {
         const res = await apiClient.get(`/barbers/${barberId}`);
         setBarber(res.data.data);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to fetch barber details', error);
+        Alert.alert('Error', error.response?.data?.message || 'Could not fetch barber details');
       } finally {
         setLoading(false);
       }

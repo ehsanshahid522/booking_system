@@ -27,7 +27,10 @@ export default function RequestsScreen() {
       const all: Booking[] = res.data?.data?.bookings || [];
       // Only pending bookings (not manual_offline)
       setRequests(all.filter(b => b.status === 'pending'));
-    } catch (e) { console.error('Requests fetch error', e); }
+    } catch (e: any) { 
+      console.error('Requests fetch error', e);
+      Alert.alert('Error', e.response?.data?.message || 'Could not fetch requests');
+    }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 
@@ -108,7 +111,7 @@ export default function RequestsScreen() {
 
               {req.notes ? (
                 <View style={styles.notesBox}>
-                  <Text style={styles.notesText}>💬 "{req.notes}"</Text>
+                  <Text style={styles.notesText}>💬 &quot;{req.notes}&quot;</Text>
                 </View>
               ) : null}
 

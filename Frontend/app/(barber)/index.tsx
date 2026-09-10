@@ -44,8 +44,9 @@ export default function BarberDashboard() {
 
       const gs = servicesRes.data?.data?.services || servicesRes.data?.data || [];
       setGlobalServices(Array.isArray(gs) ? gs : []);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Dashboard fetch error:', e);
+      Alert.alert('Error', e.response?.data?.message || 'Could not fetch dashboard data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -213,7 +214,7 @@ export default function BarberDashboard() {
 
       {/* Today's Schedule */}
       <View style={[styles.sectionHeader, { marginTop: Spacing.lg }]}>
-        <Text style={styles.sectionTitle}>Today's Schedule</Text>
+        <Text style={styles.sectionTitle}>Today&apos;s Schedule</Text>
         <TouchableOpacity onPress={() => router.push('/(barber)/schedule' as any)}>
           <Text style={styles.seeAll}>See All</Text>
         </TouchableOpacity>
