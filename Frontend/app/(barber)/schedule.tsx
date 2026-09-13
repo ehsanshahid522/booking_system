@@ -24,15 +24,13 @@ interface BarberService {
   customPrice: number;
 }
 
-// Generate hourly slots from a working hours string like "09:00 AM - 06:00 PM"
-function generateSlots(workingHours: string, date: string): string[] {
-  // Default: 9 AM to 6 PM
+function generateSlots(workingHours: string): string[] {
   const slots: string[] = [];
   try {
     const [startStr, endStr] = workingHours.split(' - ');
     const to24 = (s: string) => {
       const [time, period] = s.trim().split(' ');
-      let [h, m] = time.split(':').map(Number);
+      let [h] = time.split(':').map(Number);
       if (period === 'PM' && h !== 12) h += 12;
       if (period === 'AM' && h === 12) h = 0;
       return h;
@@ -45,8 +43,7 @@ function generateSlots(workingHours: string, date: string): string[] {
       slots.push(`${String(hour).padStart(2, '0')}:00 ${period}`);
     }
   } catch {
-    // fallback
-    for (let h = 9; h < 18; h++) {
+    for (let h = 9; h < 20; h++) {
       const period = h < 12 ? 'AM' : 'PM';
       const hour = h % 12 === 0 ? 12 : h % 12;
       slots.push(`${String(hour).padStart(2, '0')}:00 ${period}`);
@@ -60,14 +57,13 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export default function ScheduleScreen() {
   const { user } = useAuth();
   const todayDate = new Date();
-  const [selectedDateOffset, setSelectedDateOffset] = useState(0); // 0 = today, 1 = tomorrow, etc.
+  const [selectedDateOffset, setSelectedDateOffset] = useState(0);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [myServices, setMyServices] = useState<BarberService[]>([]);
-  const [workingHours, setWorkingHours] = useState('09:00 AM - 06:00 PM');
+  const [workingHours, setWorkingHours] = useState('09:00 AM - 08:00 PM');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Manual booking modal
   const [showManualModal, setShowManualModal] = useState(false);
   const [manualSlot, setManualSlot] = useState('');
   const [manualClient, setManualClient] = useState('');
@@ -84,7 +80,7 @@ export default function ScheduleScreen() {
     try {
       const [bookingsRes, profileRes] = await Promise.all([
         apiClient.get('/bookings/my'),
-        apiClient.get(`/barbers/${user?._id}`),
+        apiClient.get('/barbers/primary'),
       ]);
       const bData = bookingsRes.data?.data?.bookings || [];
       setBookings(bData);
@@ -93,16 +89,15 @@ export default function ScheduleScreen() {
       if (barber?.services) setMyServices(barber.services);
     } catch (e: any) { 
       console.error('Schedule fetch:', e); 
-      Alert.alert('Error', e.response?.data?.message || 'Could not fetch schedule');
     }
     finally { setLoading(false); setRefreshing(false); }
-  }, [user?._id]);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const selectedDate = getDateStr(selectedDateOffset);
-  const dayBookings = bookings.filter(b => b.date === selectedDate);
-  const slots = generateSlots(workingHours, selectedDate);
+  const dayBookings = bookings.filter(b => b.date && b.date.startsWith(selectedDate));
+  const slots = generateSlots(workingHours);
 
   const getSlotBooking = (slot: string) => dayBookings.find(b => b.startTime === slot);
 
@@ -132,11 +127,11 @@ export default function ScheduleScreen() {
         serviceId: manualService.service._id,
         date: selectedDate,
         startTime: manualSlot,
-        endTime: manualSlot, // simplified; backend might calculate
-        notes: `Offline: ${manualClient}`,
+        endTime: manualSlot,
+        notes: `Offline Client: ${manualClient}`,
         status: 'manual_offline',
       });
-      Alert.alert('Success', 'Slot blocked successfully!');
+      Alert.alert('Success', 'Slot blocked for walk-in client!');
       setShowManualModal(false);
       fetchData();
     } catch (e: any) {
@@ -156,7 +151,7 @@ export default function ScheduleScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Schedule 📅</Text>
+        <Text style={styles.title}>Salon Schedule 📅</Text>
       </View>
 
       {/* Day Selector */}
@@ -179,8 +174,8 @@ export default function ScheduleScreen() {
         {[
           { label: 'Total', value: dayBookings.length, color: Colors.text },
           { label: 'Done', value: dayBookings.filter(b => b.status === 'completed').length, color: Colors.success },
-          { label: 'Remaining', value: dayBookings.filter(b => b.status === 'confirmed').length, color: Colors.warning },
-          { label: 'Earnings', value: `Rs.${dayBookings.filter(b=>b.status==='completed').reduce((s,b)=>s+b.amount,0).toLocaleString()}`, color: Colors.gold },
+          { label: 'Pending', value: dayBookings.filter(b => b.status === 'confirmed').length, color: Colors.warning },
+          { label: 'Earnings', value: `£${dayBookings.filter(b=>b.status==='completed').reduce((s,b)=>s+b.amount,0).toLocaleString()}`, color: Colors.gold },
         ].map(s => (
           <View key={s.label} style={styles.summaryItem}>
             <Text style={[styles.summaryValue, { color: s.color }]}>{s.value}</Text>
@@ -209,15 +204,15 @@ export default function ScheduleScreen() {
                   <>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.slotClientName}>
-                        {isOffline ? `🔒 ${booking.notes?.replace('Offline: ', '')}` : `👤 ${booking.customer?.name}`}
+                        {isOffline ? `🔒 ${booking.notes?.replace('Offline Client: ', '')}` : `👤 ${booking.customer?.name}`}
                       </Text>
                       <Text style={styles.slotServiceName}>{booking.service?.name}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                      <Text style={styles.slotAmount}>Rs. {booking.amount.toLocaleString()}</Text>
+                      <Text style={styles.slotAmount}>£{booking.amount}</Text>
                       {booking.status === 'confirmed' && (
                         <TouchableOpacity style={styles.completeBtn} onPress={() => handleMarkComplete(booking._id)}>
-                          <Text style={styles.completeBtnText}>✓ Done</Text>
+                          <Text style={styles.completeBtnText}>✓ Complete</Text>
                         </TouchableOpacity>
                       )}
                       {isCompleted && <Text style={styles.completedLabel}>Completed ✅</Text>}
@@ -225,7 +220,7 @@ export default function ScheduleScreen() {
                   </>
                 ) : (
                   <TouchableOpacity style={styles.emptySlotContent} onPress={() => openManualModal(slot)}>
-                    <Text style={styles.emptySlotText}>Available — Tap to block</Text>
+                    <Text style={styles.emptySlotText}>Available — Tap to block slot</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -247,7 +242,7 @@ export default function ScheduleScreen() {
             <Text style={styles.inputLabel}>Walk-in Client Name</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Kamran Khan"
+              placeholder="e.g. Oliver Smith"
               placeholderTextColor={Colors.textMuted}
               value={manualClient}
               onChangeText={setManualClient}
@@ -261,7 +256,7 @@ export default function ScheduleScreen() {
                   onPress={() => setManualService(s)}
                 >
                   <Text style={styles.serviceOptionText}>{s.service?.name}</Text>
-                  <Text style={styles.serviceOptionPrice}>Rs. {s.customPrice}</Text>
+                  <Text style={styles.serviceOptionPrice}>£{s.customPrice}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -291,7 +286,7 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 14, fontWeight: '800' },
   summaryLabel: { color: Colors.textMuted, fontSize: 10 },
   slotRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: Spacing.sm },
-  slotTime: { width: 60, color: Colors.textMuted, fontSize: 12, fontWeight: '600', textAlign: 'right' },
+  slotTime: { width: 65, color: Colors.textMuted, fontSize: 12, fontWeight: '600', textAlign: 'right' },
   slotTimeBooked: { color: Colors.gold },
   slotCard: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: Radius.md, padding: Spacing.sm, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.card, minHeight: 52 },
   slotCardBooked: { borderColor: Colors.gold + '88', backgroundColor: Colors.gold + '11' },
@@ -299,13 +294,13 @@ const styles = StyleSheet.create({
   slotCardOffline: { borderColor: Colors.warning + '88', backgroundColor: Colors.warning + '11' },
   slotClientName: { color: Colors.text, fontSize: 13, fontWeight: '700' },
   slotServiceName: { color: Colors.textSecondary, fontSize: 11 },
-  slotAmount: { color: Colors.gold, fontWeight: '700', fontSize: 12 },
-  completeBtn: { backgroundColor: Colors.success + '22', borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8, borderWidth: 1, borderColor: Colors.success },
-  completeBtnText: { color: Colors.success, fontSize: 11, fontWeight: '700' },
+  slotAmount: { color: Colors.gold, fontWeight: '800', fontSize: 13 },
+  completeBtn: { backgroundColor: Colors.success + '22', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8, borderWidth: 1, borderColor: Colors.success },
+  completeBtnText: { color: Colors.success, fontSize: 11, fontWeight: '800' },
   completedLabel: { color: Colors.success, fontSize: 10, fontWeight: '700' },
   emptySlotContent: { flex: 1, alignItems: 'center' },
   emptySlotText: { color: Colors.textMuted, fontSize: 12 },
-  // Modal
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.lg, paddingBottom: 40 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
@@ -315,7 +310,7 @@ const styles = StyleSheet.create({
   serviceOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 10, marginBottom: 6, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.card },
   serviceOptionActive: { borderColor: Colors.gold, backgroundColor: Colors.gold + '18' },
   serviceOptionText: { color: Colors.text, fontWeight: '600' },
-  serviceOptionPrice: { color: Colors.gold, fontWeight: '700' },
+  serviceOptionPrice: { color: Colors.gold, fontWeight: '800' },
   saveBtn: { backgroundColor: Colors.gold, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: Spacing.md },
   saveBtnText: { color: Colors.background, fontWeight: '800', fontSize: 16 },
 });

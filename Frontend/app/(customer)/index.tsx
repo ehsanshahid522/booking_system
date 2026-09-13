@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Dimensions, ActivityIndicator
+  TextInput, Dimensions, ActivityIndicator, Linking
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import apiClient from '@/api/client';
-import BarberCard from '@/components/BarberCard';
+import StatusBadge from '@/components/StatusBadge';
 
 const { width } = Dimensions.get('window');
-const CATEGORIES = ['All', 'Hair', 'Beard', 'Skin', 'Wellness', 'Combo'];
+const CATEGORIES = ['All', 'Hair', 'Beard', 'Wellness', 'Combo'];
 
 export default function CustomerHome() {
   const router = useRouter();
   const { user } = useAuth();
   const [selectedCat, setSelectedCat] = useState('All');
-  const [barbers, setBarbers] = useState<any[]>([]);
+  const [primaryBarber, setPrimaryBarber] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,19 +26,18 @@ export default function CustomerHome() {
 
   async function fetchData() {
     try {
-      const [servicesRes, barbersRes] = await Promise.all([
+      const [servicesRes, barberRes] = await Promise.all([
         apiClient.get('/services'),
-        apiClient.get('/barbers?limit=5')
+        apiClient.get('/barbers/primary')
       ]);
       
       const sData = servicesRes.data?.data?.services || servicesRes.data?.data || [];
-      const bData = barbersRes.data?.data?.barbers || barbersRes.data?.data || [];
+      const bData = barberRes.data?.data?.barber || null;
 
       setServices(Array.isArray(sData) ? sData : []);
-      setBarbers(Array.isArray(bData) ? bData : []);
+      setPrimaryBarber(bData);
     } catch (e) {
       console.error('Failed to fetch home data:', e);
-      setBarbers([]);
       setServices([]);
     } finally {
       setLoading(false);
@@ -47,11 +46,10 @@ export default function CustomerHome() {
 
   const firstName = user?.name?.split(' ')[0] || 'Guest';
   const safeServices = Array.isArray(services) ? services : [];
-  const safeBarbers = Array.isArray(barbers) ? barbers : [];
 
   const filteredServices = selectedCat === 'All'
-    ? safeServices.slice(0, 6)
-    : safeServices.filter(s => s && s.category === selectedCat).slice(0, 6);
+    ? safeServices
+    : safeServices.filter(s => s && s.category === selectedCat);
 
   if (loading) {
     return (
@@ -61,14 +59,20 @@ export default function CustomerHome() {
     );
   }
 
+  const shopName = primaryBarber?.shopName || 'Ehsan Salon';
+  const shopLocation = primaryBarber?.shopLocation || '142 Oxford Street, London, W1D 1LU, UK';
+  const shopRating = primaryBarber?.rating || 4.9;
+  const shopReviews = primaryBarber?.reviewCount || 148;
+  const shopStatus = primaryBarber?.status || 'available';
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Good Morning 👋</Text>
-          <Text style={styles.name}>{firstName}</Text>
+          <Text style={styles.greeting}>Welcome to</Text>
+          <Text style={styles.name}>{shopName} 💈</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(customer)/notifications' as any)}>
@@ -78,33 +82,66 @@ export default function CustomerHome() {
         </View>
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchWrap}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search barbers, services..."
-          placeholderTextColor={Colors.textMuted}
-        />
+      {/* Hero Salon Showcase Banner */}
+      <View style={styles.heroCard}>
+        <View style={styles.heroHeaderRow}>
+          <View style={styles.salonBadgeContainer}>
+            <Text style={styles.salonBadgeText}>PREMIER UK SALON</Text>
+          </View>
+          <StatusBadge status={shopStatus} />
+        </View>
+
+        <Text style={styles.heroTitle}>{shopName}</Text>
+        <Text style={styles.heroLoc}>📍 {shopLocation}</Text>
+        <Text style={styles.heroHours}>⏰ Open Today: 09:00 AM - 08:00 PM</Text>
+
+        <View style={styles.ratingRow}>
+          <Text style={styles.starText}>★ {shopRating.toFixed(1)}</Text>
+          <Text style={styles.reviewText}>({shopReviews} reviews)</Text>
+          <Text style={styles.dotSeparator}>•</Text>
+          <Text style={styles.tagText}>Central London</Text>
+        </View>
+
+        {/* Quick Action Buttons */}
+        <View style={styles.heroActionsRow}>
+          <TouchableOpacity
+            style={styles.heroBookBtn}
+            onPress={() => router.push({ pathname: '/(customer)/booking' as any, params: { barberId: primaryBarber?._id } })}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.heroBookText}>Book Appointment ✂️</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.heroCallBtn}
+            onPress={() => Linking.openURL('tel:+447700900077')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.heroCallText}>📞 Call</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Promo Banner */}
+      {/* Special Offer Banner */}
       <View style={styles.promoBanner}>
-        <View>
-          <Text style={styles.promoTitle}>Friday Special 🎉</Text>
-          <Text style={styles.promoSub}>20% off on all beard services</Text>
-          <TouchableOpacity style={styles.promoBtn} onPress={() => router.push('/(customer)/services' as any)}>
-            <Text style={styles.promoBtnText}>Book Now →</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.promoTitle}>Special Treatment Package 🎉</Text>
+          <Text style={styles.promoSub}>Full VIP Grooming with Hot Towel & Facial</Text>
+          <TouchableOpacity
+            style={styles.promoBtn}
+            onPress={() => router.push('/(customer)/services' as any)}
+          >
+            <Text style={styles.promoBtnText}>View Menu →</Text>
           </TouchableOpacity>
         </View>
         <Text style={styles.promoEmoji}>🪒</Text>
       </View>
 
-      {/* Service Categories */}
+      {/* Services Section */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Services</Text>
+        <Text style={styles.sectionTitle}>Salon Services & Menu</Text>
         <TouchableOpacity onPress={() => router.push('/(customer)/services' as any)}>
-          <Text style={styles.seeAll}>See All</Text>
+          <Text style={styles.seeAll}>View All</Text>
         </TouchableOpacity>
       </View>
 
@@ -121,67 +158,82 @@ export default function CustomerHome() {
         ))}
       </ScrollView>
 
-      {/* Services Grid */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.serviceScroll} contentContainerStyle={{ paddingHorizontal: Spacing.lg, gap: Spacing.sm }}>
+      {/* Services List Grid */}
+      <View style={styles.servicesGrid}>
         {filteredServices.length === 0 ? (
-          <Text style={{ color: Colors.textMuted }}>No services available.</Text>
+          <Text style={{ color: Colors.textMuted, paddingHorizontal: Spacing.lg }}>No services found in this category.</Text>
         ) : (
           filteredServices.map(svc => (
-            <TouchableOpacity
-              key={svc._id}
-              style={styles.serviceCard}
-              onPress={() => router.push({ pathname: '/(customer)/booking' as any, params: { serviceId: svc._id } })}
-              activeOpacity={0.8}
-            >
-              <View style={styles.svcIconBox}>
-                <Text style={styles.svcIcon}>✨</Text>
+            <View key={svc._id} style={styles.serviceItemCard}>
+              <View style={styles.svcLeft}>
+                <View style={styles.svcIconCircle}>
+                  <Text style={styles.svcIconEmoji}>{svc.icon || '✂️'}</Text>
+                </View>
+                <View style={styles.svcTextDetails}>
+                  <Text style={styles.svcItemTitle}>{svc.name}</Text>
+                  <Text style={styles.svcItemSub}>{svc.description || 'Professional styling service'}</Text>
+                  <Text style={styles.svcDuration}>⏱ {svc.duration} minutes</Text>
+                </View>
               </View>
-              <Text style={styles.svcName}>{svc.name}</Text>
-              <Text style={styles.svcPrice}>Rs. {svc.price}</Text>
-              <Text style={styles.svcDuration}>⏱ {svc.duration} min</Text>
-            </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
 
-      {/* Featured Barbers */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Top Barbers</Text>
-        <TouchableOpacity onPress={() => router.push('/(customer)/barbers' as any)}>
-          <Text style={styles.seeAll}>See All</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.barbersList}>
-        {safeBarbers.length === 0 ? (
-          <Text style={{ color: Colors.textMuted, textAlign: 'center', padding: Spacing.lg }}>No barbers found.</Text>
-        ) : (
-          safeBarbers.slice(0, 3).map(barber => (
-            <BarberCard
-              key={barber._id}
-              name={barber.name}
-              initials={barber.name?.substring(0, 2).toUpperCase() || 'BB'}
-              color={Colors.gold}
-              specialization={barber.specialization || 'Expert Barber'}
-              rating={barber.rating || 0}
-              reviewCount={barber.reviewCount || 0}
-              experience={barber.experience || 0}
-              status={barber.status || 'available'}
-              price={`Rs. 500+`}
-              onPress={() => router.push({ pathname: '/(customer)/barber-detail' as any, params: { barberId: barber._id } })}
-            />
+              <View style={styles.svcRight}>
+                <Text style={styles.svcPriceTag}>£{svc.price}</Text>
+                <TouchableOpacity
+                  style={styles.bookSmallBtn}
+                  onPress={() => router.push({ pathname: '/(customer)/booking' as any, params: { serviceId: svc._id, barberId: primaryBarber?._id } })}
+                >
+                  <Text style={styles.bookSmallText}>Book</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ))
         )}
       </View>
 
-      {/* Quick Book Banner */}
-      <TouchableOpacity style={styles.quickBookBanner} onPress={() => router.push('/(customer)/booking' as any)} activeOpacity={0.85}>
-        <Text style={styles.quickBookTitle}>Quick Book ✂️</Text>
-        <Text style={styles.quickBookSub}>Let us find the best barber for you right now</Text>
+      {/* Why Choose Ehsan Salon */}
+      <View style={styles.whySection}>
+        <Text style={styles.whyTitle}>Why Choose {shopName}?</Text>
+        <View style={styles.whyGrid}>
+          <View style={styles.whyCard}>
+            <Text style={styles.whyEmoji}>💈</Text>
+            <Text style={styles.whyCardTitle}>Master Barbers</Text>
+            <Text style={styles.whyCardSub}>Certified British & International stylists</Text>
+          </View>
+
+          <View style={styles.whyCard}>
+            <Text style={styles.whyEmoji}>☕</Text>
+            <Text style={styles.whyCardTitle}>VIP Lounge</Text>
+            <Text style={styles.whyCardSub}>Complimentary espresso & refreshments</Text>
+          </View>
+
+          <View style={styles.whyCard}>
+            <Text style={styles.whyEmoji}>🔥</Text>
+            <Text style={styles.whyCardTitle}>Hot Towel Shave</Text>
+            <Text style={styles.whyCardSub}>Traditional luxury razor & aromatherapy</Text>
+          </View>
+
+          <View style={styles.whyCard}>
+            <Text style={styles.whyEmoji}>⭐</Text>
+            <Text style={styles.whyCardTitle}>4.9 Star Rated</Text>
+            <Text style={styles.whyCardSub}>Over 140+ verified client reviews</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Quick Direct Book Banner */}
+      <TouchableOpacity
+        style={styles.quickBookBanner}
+        onPress={() => router.push({ pathname: '/(customer)/booking' as any, params: { barberId: primaryBarber?._id } })}
+        activeOpacity={0.85}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={styles.quickBookTitle}>Book Your Appointment ✂️</Text>
+          <Text style={styles.quickBookSub}>Reserve your slot at Ehsan Salon in under 30 seconds</Text>
+        </View>
         <Text style={styles.quickBookArrow}>→</Text>
       </TouchableOpacity>
 
-      <View style={{ height: 24 }} />
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
 }
@@ -195,15 +247,35 @@ const styles = StyleSheet.create({
   iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: Colors.card, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: Colors.border, position: 'relative' },
   iconText: { fontSize: 18 },
   notifDot: { position: 'absolute', top: 8, right: 8, width: 9, height: 9, borderRadius: 4.5, backgroundColor: Colors.gold, borderWidth: 1.5, borderColor: Colors.background },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.card, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: Spacing.md, marginHorizontal: Spacing.lg, marginBottom: Spacing.md },
-  searchIcon: { fontSize: 16 },
-  searchInput: { flex: 1, color: Colors.text, paddingVertical: 12, fontSize: 14 },
-  promoBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: Colors.goldDark + '33', borderRadius: Radius.md, marginHorizontal: Spacing.lg, padding: Spacing.lg, borderWidth: 1, borderColor: Colors.gold + '44', marginBottom: Spacing.lg },
-  promoTitle: { color: Colors.gold, fontSize: 18, fontWeight: '800' },
-  promoSub: { color: Colors.textSecondary, fontSize: 13, marginTop: 4, marginBottom: Spacing.sm },
-  promoBtn: { backgroundColor: Colors.gold, borderRadius: Radius.full, paddingVertical: 7, paddingHorizontal: 16, alignSelf: 'flex-start' },
-  promoBtnText: { color: Colors.black, fontSize: 13, fontWeight: '700' },
-  promoEmoji: { fontSize: 52 },
+
+  // Hero Salon Showcase
+  heroCard: { marginHorizontal: Spacing.lg, backgroundColor: Colors.card, borderRadius: Radius.lg, padding: Spacing.lg, borderWidth: 1, borderColor: Colors.gold + '44', marginBottom: Spacing.lg, gap: 6 },
+  heroHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  salonBadgeContainer: { backgroundColor: Colors.gold + '22', paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.gold + '55' },
+  salonBadgeText: { color: Colors.gold, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  heroTitle: { color: Colors.text, fontSize: 24, fontWeight: '800' },
+  heroLoc: { color: Colors.textSecondary, fontSize: 13 },
+  heroHours: { color: Colors.textMuted, fontSize: 12 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  starText: { color: Colors.gold, fontWeight: '800', fontSize: 14 },
+  reviewText: { color: Colors.textSecondary, fontSize: 12 },
+  dotSeparator: { color: Colors.textMuted, fontSize: 12 },
+  tagText: { color: Colors.gold, fontSize: 12, fontWeight: '600' },
+  heroActionsRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
+  heroBookBtn: { flex: 1, backgroundColor: Colors.gold, borderRadius: Radius.full, paddingVertical: 12, alignItems: 'center' },
+  heroBookText: { color: Colors.black, fontWeight: '800', fontSize: 14 },
+  heroCallBtn: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.full, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center' },
+  heroCallText: { color: Colors.text, fontWeight: '700', fontSize: 14 },
+
+  // Promo Banner
+  promoBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: Colors.goldDark + '22', borderRadius: Radius.md, marginHorizontal: Spacing.lg, padding: Spacing.lg, borderWidth: 1, borderColor: Colors.gold + '33', marginBottom: Spacing.lg },
+  promoTitle: { color: Colors.gold, fontSize: 16, fontWeight: '800' },
+  promoSub: { color: Colors.textSecondary, fontSize: 12, marginTop: 2, marginBottom: Spacing.sm },
+  promoBtn: { backgroundColor: Colors.gold, borderRadius: Radius.full, paddingVertical: 6, paddingHorizontal: 14, alignSelf: 'flex-start' },
+  promoBtnText: { color: Colors.black, fontSize: 12, fontWeight: '700' },
+  promoEmoji: { fontSize: 44 },
+
+  // Section Headers
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm },
   sectionTitle: { color: Colors.text, fontSize: 18, fontWeight: '800' },
   seeAll: { color: Colors.gold, fontSize: 13, fontWeight: '600' },
@@ -212,16 +284,34 @@ const styles = StyleSheet.create({
   catChipActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
   catText: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
   catTextActive: { color: Colors.black },
-  serviceScroll: { marginBottom: Spacing.lg },
-  serviceCard: { width: 130, backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center', borderWidth: 1, borderColor: Colors.border, gap: 4 },
-  svcIconBox: { width: 50, height: 50, borderRadius: 25, backgroundColor: Colors.surface, justifyContent: 'center', alignItems: 'center', marginBottom: 4, borderWidth: 1, borderColor: Colors.border },
-  svcIcon: { fontSize: 24 },
-  svcName: { color: Colors.text, fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  svcPrice: { color: Colors.gold, fontSize: 12, fontWeight: '700' },
-  svcDuration: { color: Colors.textMuted, fontSize: 11 },
-  barbersList: { paddingHorizontal: Spacing.lg },
-  quickBookBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, borderRadius: Radius.md, marginHorizontal: Spacing.lg, marginTop: Spacing.md, padding: Spacing.lg, borderWidth: 1, borderColor: Colors.gold + '33', gap: Spacing.sm },
+
+  // Services List Grid
+  servicesGrid: { paddingHorizontal: Spacing.lg, gap: Spacing.sm, marginBottom: Spacing.xl },
+  serviceItemCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  svcLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 },
+  svcIconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  svcIconEmoji: { fontSize: 20 },
+  svcTextDetails: { flex: 1 },
+  svcItemTitle: { color: Colors.text, fontSize: 15, fontWeight: '700' },
+  svcItemSub: { color: Colors.textSecondary, fontSize: 12, marginTop: 1 },
+  svcDuration: { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
+  svcRight: { alignItems: 'flex-end', gap: 6, marginLeft: 8 },
+  svcPriceTag: { color: Colors.gold, fontSize: 16, fontWeight: '800' },
+  bookSmallBtn: { backgroundColor: Colors.gold + '22', borderWidth: 1, borderColor: Colors.gold, borderRadius: Radius.full, paddingVertical: 4, paddingHorizontal: 12 },
+  bookSmallText: { color: Colors.gold, fontSize: 12, fontWeight: '800' },
+
+  // Why Choose Us
+  whySection: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.xl },
+  whyTitle: { color: Colors.text, fontSize: 18, fontWeight: '800', marginBottom: Spacing.md },
+  whyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  whyCard: { width: (width - Spacing.lg * 2 - Spacing.sm) / 2, backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, gap: 4 },
+  whyEmoji: { fontSize: 24, marginBottom: 2 },
+  whyCardTitle: { color: Colors.text, fontSize: 14, fontWeight: '700' },
+  whyCardSub: { color: Colors.textMuted, fontSize: 11, lineHeight: 15 },
+
+  // Quick Book Banner
+  quickBookBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, borderRadius: Radius.lg, marginHorizontal: Spacing.lg, padding: Spacing.lg, borderWidth: 1, borderColor: Colors.gold + '66', gap: Spacing.sm },
   quickBookTitle: { color: Colors.gold, fontSize: 16, fontWeight: '800' },
-  quickBookSub: { color: Colors.textSecondary, fontSize: 12, flex: 1, marginTop: 2 },
-  quickBookArrow: { color: Colors.gold, fontSize: 20, fontWeight: '800' },
+  quickBookSub: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  quickBookArrow: { color: Colors.gold, fontSize: 22, fontWeight: '800' },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import apiClient from '@/api/client';
@@ -8,9 +8,9 @@ import StarRating from '@/components/StarRating';
 import StatusBadge from '@/components/StatusBadge';
 
 const REVIEWS = [
-  { id: 1, name: 'Ali R.', rating: 5, comment: 'Best haircut I\'ve ever had! Really knows his craft.', date: '2 days ago' },
-  { id: 2, name: 'Hassan S.', rating: 5, comment: 'Very professional and on time. Will book again.', date: '1 week ago' },
-  { id: 3, name: 'Kamran M.', rating: 4, comment: 'Great service, shop is clean and well maintained.', date: '2 weeks ago' },
+  { id: 1, name: 'James W.', rating: 5, comment: 'Best skin fade in central London! Premium service & hot towel.', date: '2 days ago' },
+  { id: 2, name: 'Oliver S.', rating: 5, comment: 'Punctual, super clean salon, and immaculate beard trim.', date: '1 week ago' },
+  { id: 3, name: 'Harry B.', rating: 5, comment: 'Ehsan is a true master barber. Highly recommended VIP package.', date: '2 weeks ago' },
 ];
 
 export default function BarberDetailScreen() {
@@ -23,16 +23,17 @@ export default function BarberDetailScreen() {
   useEffect(() => {
     async function fetchBarber() {
       try {
-        const res = await apiClient.get(`/barbers/${barberId}`);
-        setBarber(res.data.data);
+        const endpoint = barberId ? `/barbers/${barberId}` : '/barbers/primary';
+        const res = await apiClient.get(endpoint);
+        setBarber(res.data?.data?.barber || res.data?.data);
       } catch (error: any) {
         console.error('Failed to fetch barber details', error);
-        Alert.alert('Error', error.response?.data?.message || 'Could not fetch barber details');
+        Alert.alert('Error', error.response?.data?.message || 'Could not fetch salon details');
       } finally {
         setLoading(false);
       }
     }
-    if (barberId) fetchBarber();
+    fetchBarber();
   }, [barberId]);
 
   if (loading) {
@@ -46,7 +47,7 @@ export default function BarberDetailScreen() {
   if (!barber) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: Colors.textMuted }}>Barber not found.</Text>
+        <Text style={{ color: Colors.textMuted }}>Salon profile not found.</Text>
         <TouchableOpacity style={{ marginTop: 20 }} onPress={() => router.back()}>
           <Text style={{ color: Colors.gold }}>Go Back</Text>
         </TouchableOpacity>
@@ -56,6 +57,8 @@ export default function BarberDetailScreen() {
 
   const barberServices = Array.isArray(barber.services) ? barber.services : [];
   const daysAvailable = Array.isArray(barber.daysAvailable) ? barber.daysAvailable : [];
+  const shopName = barber.shopName || barber.name || 'Ehsan Salon';
+  const location = barber.shopLocation || '142 Oxford Street, London, W1D 1LU, UK';
 
   return (
     <View style={styles.container}>
@@ -64,28 +67,39 @@ export default function BarberDetailScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Barber Profile</Text>
+        <Text style={styles.topBarTitle}>Salon Profile</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
         <View style={styles.profileHeader}>
-          <Avatar initials={barber.name?.substring(0, 2).toUpperCase() || 'BB'} color={Colors.gold} size={90} fontSize={32} />
-          <Text style={styles.barberName}>{barber.name || 'Barber'}</Text>
-          {barber.shopName ? <Text style={styles.shopDetailName}>📍 {barber.shopName}</Text> : null}
-          {barber.shopLocation ? <Text style={styles.shopDetailLoc}>{barber.shopLocation}</Text> : null}
-          <Text style={styles.spec}>{barber.specialization || 'Expert Barber'}</Text>
-          <StarRating rating={barber.rating || 0} reviewCount={barber.reviewCount || 0} size={15} />
+          <Avatar initials={shopName.substring(0, 2).toUpperCase()} color={Colors.gold} size={90} fontSize={32} />
+          <Text style={styles.barberName}>{shopName}</Text>
+          <Text style={styles.shopDetailName}>📍 {location}</Text>
+          <Text style={styles.spec}>{barber.specialization || 'Master Barber & Luxury Grooming'}</Text>
+          <StarRating rating={barber.rating || 4.9} reviewCount={barber.reviewCount || 148} size={15} />
           <View style={{ marginTop: Spacing.sm }}><StatusBadge status={barber.status || 'available'} /></View>
+        </View>
+
+        {/* Action Bar */}
+        <View style={styles.contactRow}>
+          <TouchableOpacity style={styles.contactBtn} onPress={() => Linking.openURL('tel:+447700900077')}>
+            <Text style={styles.contactIcon}>📞</Text>
+            <Text style={styles.contactText}>Call Salon</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.contactBtn} onPress={() => Linking.openURL('https://maps.google.com')}>
+            <Text style={styles.contactIcon}>🗺️</Text>
+            <Text style={styles.contactText}>Directions</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Stats Row */}
         <View style={styles.statsRow}>
           {[
-            { label: 'Experience', value: `${barber.experience || 0} yrs` },
-            { label: 'Rating', value: (barber.rating || 0).toFixed(1) },
-            { label: 'Reviews', value: (barber.reviewCount || 0).toString() },
+            { label: 'Experience', value: `${barber.experience || 9} yrs` },
+            { label: 'Rating', value: (barber.rating || 4.9).toFixed(1) },
+            { label: 'Reviews', value: (barber.reviewCount || 148).toString() },
           ].map(s => (
             <View key={s.label} style={styles.statItem}>
               <Text style={styles.statValue}>{s.value}</Text>
@@ -96,12 +110,12 @@ export default function BarberDetailScreen() {
 
         {/* Info Card */}
         <View style={styles.infoCard}>
-          <Text style={styles.infoText}>📝 {barber.bio || 'No bio available.'}</Text>
+          <Text style={styles.infoText}>📝 {barber.bio || 'Premier barbershop in central London offering traditional craftsmanship, modern fades, and luxury grooming experiences.'}</Text>
           <View style={styles.infoRow}>
-            <Text style={styles.infoText}>🕐 {barber.workingHours || '10:00 AM - 08:00 PM'}</Text>
+            <Text style={styles.infoText}>🕐 {barber.workingHours || '09:00 AM - 08:00 PM'}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoText}>☕ Break: {barber.breakTime || 'None'}</Text>
+            <Text style={styles.infoText}>☕ Break: {barber.breakTime || '01:00 PM - 02:00 PM'}</Text>
           </View>
           <View style={styles.daysRow}>
             {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day => (
@@ -116,7 +130,7 @@ export default function BarberDetailScreen() {
         <View style={styles.tabs}>
           {(['info', 'reviews'] as const).map(t => (
             <TouchableOpacity key={t} style={[styles.tab, activeTab === t && styles.tabActive]} onPress={() => setActiveTab(t)}>
-              <Text style={[styles.tabText, activeTab === t && styles.tabTextActive]}>{t === 'info' ? 'Services' : 'Reviews'}</Text>
+              <Text style={[styles.tabText, activeTab === t && styles.tabTextActive]}>{t === 'info' ? 'Services' : 'Client Reviews'}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -124,16 +138,16 @@ export default function BarberDetailScreen() {
         {activeTab === 'info' ? (
           <View style={styles.section}>
             {barberServices.length === 0 ? (
-              <Text style={{ color: Colors.textMuted, textAlign: 'center' }}>No services available.</Text>
+              <Text style={{ color: Colors.textMuted, textAlign: 'center' }}>No services listed.</Text>
             ) : (
               barberServices.map((s: any) => (
                 <View key={s._id || Math.random().toString()} style={styles.serviceRow}>
                   <Text style={styles.serviceIcon}>{s.service?.icon || '✂️'}</Text>
                   <View style={styles.serviceInfo}>
                     <Text style={styles.serviceName}>{s.service?.name || 'Service'}</Text>
-                    <Text style={styles.serviceDur}>{s.service?.duration || 0} min</Text>
+                    <Text style={styles.serviceDur}>{s.service?.duration || 30} min</Text>
                   </View>
-                  <Text style={styles.servicePrice}>Rs. {s.customPrice?.toLocaleString() || 0}</Text>
+                  <Text style={styles.servicePrice}>£{s.customPrice?.toLocaleString() || s.service?.price || '25'}</Text>
                 </View>
               ))
             )}
@@ -159,7 +173,7 @@ export default function BarberDetailScreen() {
       {/* Book Button */}
       <View style={styles.bookBar}>
         <View>
-          <Text style={styles.bookPrice}>Rs. {barber.services?.[0]?.customPrice?.toLocaleString() || '500'}+</Text>
+          <Text style={styles.bookPrice}>£{barberServices[0]?.customPrice || '25'}+</Text>
           <Text style={styles.bookPriceLabel}>Starting price</Text>
         </View>
         <TouchableOpacity
@@ -167,7 +181,7 @@ export default function BarberDetailScreen() {
           onPress={() => router.push({ pathname: '/(customer)/booking' as any, params: { barberId: barber._id } })}
           disabled={barber.status === 'off_duty'}
         >
-          <Text style={styles.bookBtnText}>{barber.status === 'off_duty' ? 'Off Duty' : 'Book Now ✂️'}</Text>
+          <Text style={styles.bookBtnText}>{barber.status === 'off_duty' ? 'Salon Closed' : 'Book Appointment ✂️'}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -180,18 +194,21 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.card, justifyContent: 'center', alignItems: 'center' },
   backText: { color: Colors.text, fontSize: 20 },
   topBarTitle: { color: Colors.text, fontSize: 16, fontWeight: '700' },
-  profileHeader: { alignItems: 'center', paddingTop: Spacing.xl, paddingBottom: Spacing.lg, gap: Spacing.sm },
+  profileHeader: { alignItems: 'center', paddingTop: Spacing.xl, paddingBottom: Spacing.sm, gap: Spacing.xs },
   barberName: { color: Colors.text, fontSize: 24, fontWeight: '800', marginTop: Spacing.sm },
-  shopDetailName: { color: Colors.gold, fontSize: 16, fontWeight: '700', marginTop: 4 },
-  shopDetailLoc: { color: Colors.textSecondary, fontSize: 13, marginBottom: 4 },
-  spec: { color: Colors.textSecondary, fontSize: 14 },
+  shopDetailName: { color: Colors.gold, fontSize: 14, fontWeight: '700', marginTop: 2 },
+  spec: { color: Colors.textSecondary, fontSize: 13 },
+  contactRow: { flexDirection: 'row', marginHorizontal: Spacing.lg, gap: Spacing.sm, marginVertical: Spacing.sm },
+  contactBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.card, borderRadius: Radius.full, paddingVertical: 10, borderWidth: 1, borderColor: Colors.border },
+  contactIcon: { fontSize: 14 },
+  contactText: { color: Colors.text, fontWeight: '700', fontSize: 13 },
   statsRow: { flexDirection: 'row', marginHorizontal: Spacing.lg, backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.md },
   statItem: { flex: 1, alignItems: 'center', gap: 4 },
   statValue: { color: Colors.gold, fontSize: 20, fontWeight: '800' },
   statLabel: { color: Colors.textSecondary, fontSize: 12 },
   infoCard: { marginHorizontal: Spacing.lg, backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.md, gap: Spacing.sm },
   infoRow: {},
-  infoText: { color: Colors.textSecondary, fontSize: 14, lineHeight: 22 },
+  infoText: { color: Colors.textSecondary, fontSize: 13, lineHeight: 20 },
   daysRow: { flexDirection: 'row', gap: 6, marginTop: 4 },
   dayChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
   dayActive: { backgroundColor: Colors.gold + '22', borderColor: Colors.gold },
@@ -208,7 +225,7 @@ const styles = StyleSheet.create({
   serviceInfo: { flex: 1 },
   serviceName: { color: Colors.text, fontSize: 14, fontWeight: '700' },
   serviceDur: { color: Colors.textSecondary, fontSize: 12 },
-  servicePrice: { color: Colors.gold, fontWeight: '700', fontSize: 14 },
+  servicePrice: { color: Colors.gold, fontWeight: '800', fontSize: 15 },
   reviewCard: { backgroundColor: Colors.card, borderRadius: Radius.sm, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border, gap: 4 },
   reviewHeader: { flexDirection: 'row', justifyContent: 'space-between' },
   reviewName: { color: Colors.text, fontWeight: '700', fontSize: 14 },
@@ -216,9 +233,9 @@ const styles = StyleSheet.create({
   reviewStars: { color: Colors.gold, fontSize: 14 },
   reviewComment: { color: Colors.textSecondary, fontSize: 13, lineHeight: 20 },
   bookBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, paddingBottom: 28 },
-  bookPrice: { color: Colors.gold, fontSize: 18, fontWeight: '800' },
+  bookPrice: { color: Colors.gold, fontSize: 20, fontWeight: '800' },
   bookPriceLabel: { color: Colors.textMuted, fontSize: 12 },
-  bookBtn: { backgroundColor: Colors.gold, borderRadius: Radius.full, paddingVertical: 13, paddingHorizontal: 28 },
+  bookBtn: { backgroundColor: Colors.gold, borderRadius: Radius.full, paddingVertical: 13, paddingHorizontal: 24 },
   bookBtnDisabled: { backgroundColor: Colors.textMuted },
   bookBtnText: { color: Colors.black, fontWeight: '800', fontSize: 15 },
 });

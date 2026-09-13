@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-const TIME_SLOTS = ['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'];
 import apiClient from '@/api/client';
 import Avatar from '@/components/Avatar';
 
-const STEPS = ['Service', 'Barber', 'Date', 'Confirm'];
+const TIME_SLOTS = ['09:00 AM', '10:00 AM', '11:00 AM', '11:30 AM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM'];
+const STEPS = ['Service', 'Date & Time', 'Confirm'];
 
 function getNext7Days() {
   const days = [];
@@ -24,30 +24,31 @@ export default function BookingScreen() {
   const params = useLocalSearchParams<{ serviceId?: string; barberId?: string }>();
   const [step, setStep] = useState(0);
   const [selectedService, setSelectedService] = useState(params.serviceId || '');
-  const [selectedBarber, setSelectedBarber] = useState(params.barberId || '');
+  const [primaryBarber, setPrimaryBarber] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('');
   const [notes, setNotes] = useState('');
   const [services, setServices] = useState<any[]>([]);
-  const [barbers, setBarbers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   React.useEffect(() => {
     async function loadData() {
       try {
-        const [barbersRes, servicesRes] = await Promise.all([
-          apiClient.get('/barbers'),
+        const [barberRes, servicesRes] = await Promise.all([
+          apiClient.get(params.barberId ? `/barbers/${params.barberId}` : '/barbers/primary'),
           apiClient.get('/services')
         ]);
-        const bRes = barbersRes?.data?.data;
-        const sRes = servicesRes?.data?.data;
+        const bRes = barberRes?.data?.data?.barber || barberRes?.data?.data;
+        const sRes = servicesRes?.data?.data?.services || servicesRes?.data?.data || [];
         
-        const bData = bRes?.barbers || bRes || [];
-        const sData = sRes?.services || sRes || [];
+        setPrimaryBarber(bRes || null);
+        setServices(Array.isArray(sRes) ? sRes : []);
         
-        setBarbers(Array.isArray(bData) ? bData : []);
-        setServices(Array.isArray(sData) ? sData : []);
+        // Default to first service if none selected
+        if (!params.serviceId && Array.isArray(sRes) && sRes.length > 0) {
+          setSelectedService(sRes[0]._id);
+        }
       } catch (e: any) {
         console.error('Fetch error:', e);
         Alert.alert('Error', e.response?.data?.message || 'Could not load booking data');
@@ -56,46 +57,45 @@ export default function BookingScreen() {
       }
     }
     loadData();
-  }, []);
+  }, [params.barberId, params.serviceId]);
 
   const days = getNext7Days();
   const safeServices = Array.isArray(services) ? services : [];
-  const safeBarbers = Array.isArray(barbers) ? barbers : [];
-  
   const svc = safeServices.find(s => s._id === selectedService);
-  const barber = safeBarbers.find(b => b._id === selectedBarber);
 
-  // Find the custom price for this service from the selected barber's profile
-  const bService = barber?.services?.find((s: any) => 
+  // Find custom price from salon profile or fallback to standard service price
+  const bService = primaryBarber?.services?.find((s: any) => 
     (s.service?._id || s.service) === selectedService
   );
-  const realPrice = bService?.customPrice ?? (svc?.price || 0);
+  const realPrice = bService?.customPrice ?? (svc?.price || 25);
 
   function canNext() {
     if (step === 0) return !!selectedService;
-    if (step === 1) return !!selectedBarber;
-    if (step === 2) return !!selectedDate && !!selectedSlot;
-    if (step === 3) return !submitting;
+    if (step === 1) return !!selectedDate && !!selectedSlot;
+    if (step === 2) return !submitting;
     return true;
   }
 
   async function handleConfirm() {
-    if (!svc || !barber) return;
+    if (!svc || !primaryBarber) {
+      Alert.alert('Error', 'Salon or service information missing.');
+      return;
+    }
     try {
       setSubmitting(true);
       await apiClient.post('/bookings', {
-        barberId: barber._id,
+        barberId: primaryBarber._id,
         serviceId: svc._id,
         date: selectedDate,
         startTime: selectedSlot,
-        endTime: selectedSlot, // Basic fallback since time calc is complex on frontend for now
+        endTime: selectedSlot,
         notes
       });
       
       Alert.alert(
         '✅ Booking Confirmed!',
-        `Your ${svc.name} with ${barber.name} on ${selectedDate} at ${selectedSlot} has been booked!`,
-        [{ text: 'View Bookings', onPress: () => router.replace('/(customer)/my-bookings' as any) }]
+        `Your ${svc.name} at ${primaryBarber.shopName || 'Ehsan Salon'} on ${selectedDate} at ${selectedSlot} is reserved!`,
+        [{ text: 'View My Bookings', onPress: () => router.replace('/(customer)/my-bookings' as any) }]
       );
     } catch (error: any) {
       console.error(error);
@@ -108,10 +108,12 @@ export default function BookingScreen() {
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: Colors.gold }}>Loading...</Text>
+        <Text style={{ color: Colors.gold, fontSize: 16, fontWeight: '700' }}>Loading Salon Booking...</Text>
       </View>
     );
   }
+
+  const shopName = primaryBarber?.shopName || 'Ehsan Salon';
 
   return (
     <View style={styles.container}>
@@ -120,7 +122,10 @@ export default function BookingScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => step > 0 ? setStep(s => s - 1) : router.back()}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>New Booking</Text>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={styles.title}>Book Appointment</Text>
+          <Text style={styles.subtitle}>{shopName}</Text>
+        </View>
         <View style={{ width: 40 }} />
       </View>
 
@@ -143,63 +148,34 @@ export default function BookingScreen() {
         {/* Step 0: Select Service */}
         {step === 0 && (
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Choose a Service</Text>
+            <Text style={styles.stepTitle}>Select Service</Text>
             {safeServices.length === 0 ? <Text style={{ color: Colors.textMuted }}>No services available.</Text> : null}
-            {safeServices.map(svc => (
+            {safeServices.map(item => (
               <TouchableOpacity
-                key={svc._id}
-                style={[styles.optionCard, selectedService === svc._id && styles.optionCardActive]}
-                onPress={() => setSelectedService(svc._id)}
+                key={item._id}
+                style={[styles.optionCard, selectedService === item._id && styles.optionCardActive]}
+                onPress={() => setSelectedService(item._id)}
               >
-                <Text style={styles.optionIcon}>✨</Text>
+                <Text style={styles.optionIcon}>{item.icon || '✨'}</Text>
                 <View style={styles.optionInfo}>
-                  <Text style={[styles.optionName, selectedService === svc._id && { color: Colors.gold }]}>{svc.name}</Text>
-                  <Text style={styles.optionSub}>{svc.category} · {svc.duration} min</Text>
+                  <Text style={[styles.optionName, selectedService === item._id && { color: Colors.gold }]}>{item.name}</Text>
+                  <Text style={styles.optionSub}>{item.category} · {item.duration} min</Text>
                 </View>
-                <Text style={[styles.optionPrice, selectedService === svc._id && { color: Colors.goldLight }]}>Rs. {svc.price}</Text>
-                {selectedService === svc._id && <Text style={styles.checkIcon}>✓</Text>}
+                <Text style={[styles.optionPrice, selectedService === item._id && { color: Colors.goldLight }]}>£{item.price}</Text>
+                {selectedService === item._id && <Text style={styles.checkIcon}>✓</Text>}
               </TouchableOpacity>
             ))}
           </View>
         )}
 
-        {/* Step 1: Select Barber */}
+        {/* Step 1: Select Date & Time */}
         {step === 1 && (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Choose a Barber</Text>
-            {safeBarbers.length === 0 ? <Text style={{ color: Colors.textMuted }}>No barbers available.</Text> : null}
-            {safeBarbers
-              .filter(b => b.services?.some((s: any) => (s.service?._id || s.service) === selectedService))
-              .map(b => (
-                <TouchableOpacity
-                  key={b._id}
-                  style={[styles.barberOption, selectedBarber === b._id && styles.optionCardActive, b.status === 'off_duty' && styles.disabledOption]}
-                  onPress={() => b.status !== 'off_duty' && setSelectedBarber(b._id)}
-                >
-                  <Avatar initials={b.name?.substring(0, 2).toUpperCase() || 'BB'} color={Colors.gold} size={44} fontSize={16} />
-                  <View style={styles.optionInfo}>
-                    <Text style={[styles.optionName, selectedBarber === b._id && { color: Colors.gold }]}>{b.name || 'Barber'}</Text>
-                    <Text style={styles.optionSub}>{b.shopName || 'Expert Barber'} · ⭐ {b.rating || 0}</Text>
-                  </View>
-                  <View style={styles.statusChip}>
-                    <Text style={[styles.statusText, b.status === 'available' && { color: Colors.success }, b.status === 'busy' && { color: Colors.warning }, b.status === 'off_duty' && { color: Colors.textMuted }]}>
-                      {b.status === 'available' ? '● Online' : b.status === 'busy' ? '● Busy' : '● Off'}
-                    </Text>
-                  </View>
-                  {selectedBarber === b._id && <Text style={styles.checkIcon}>✓</Text>}
-                </TouchableOpacity>
-              ))}
-          </View>
-        )}
-
-        {/* Step 2: Select Date & Time */}
-        {step === 2 && (
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>Select Date</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.sm, paddingBottom: Spacing.md }}>
               {days.map((d, i) => {
                 const key = d.toISOString().split('T')[0];
-                const dayName = d.toLocaleDateString('en', { weekday: 'short' });
+                const dayName = d.toLocaleDateString('en-GB', { weekday: 'short' });
                 const dayNum = d.getDate();
                 return (
                   <TouchableOpacity key={key} style={[styles.dateCard, selectedDate === key && styles.dateCardActive]} onPress={() => setSelectedDate(key)}>
@@ -213,37 +189,34 @@ export default function BookingScreen() {
 
             <Text style={styles.stepTitle}>Select Time Slot</Text>
             <View style={styles.slotsGrid}>
-              {TIME_SLOTS.map(slot => {
-                const isBooked = false; // Implement proper booking check via backend slots API later
-                return (
-                  <TouchableOpacity
-                    key={slot}
-                    style={[styles.slotChip, selectedSlot === slot && styles.slotActive, isBooked && styles.slotBooked]}
-                    onPress={() => !isBooked && setSelectedSlot(slot)}
-                    disabled={isBooked}
-                  >
-                    <Text style={[styles.slotText, selectedSlot === slot && { color: Colors.black }, isBooked && { color: Colors.textMuted }]}>
-                      {slot}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {TIME_SLOTS.map(slot => (
+                <TouchableOpacity
+                  key={slot}
+                  style={[styles.slotChip, selectedSlot === slot && styles.slotActive]}
+                  onPress={() => setSelectedSlot(slot)}
+                >
+                  <Text style={[styles.slotText, selectedSlot === slot && { color: Colors.black }]}>
+                    {slot}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         )}
 
-        {/* Step 3: Confirm */}
-        {step === 3 && (
+        {/* Step 2: Confirm */}
+        {step === 2 && (
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>Booking Summary</Text>
             <View style={styles.summaryCard}>
               {[
+                { label: '💈 Salon', value: shopName },
+                { label: '📍 Location', value: primaryBarber?.shopLocation || 'Central London, UK' },
                 { label: '✂️ Service', value: svc?.name || '-' },
-                { label: '💈 Barber', value: barber?.name || '-' },
-                { label: '📅 Date', value: selectedDate ? new Date(selectedDate).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long' }) : '-' },
+                { label: '📅 Date', value: selectedDate ? new Date(selectedDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : '-' },
                 { label: '🕐 Time', value: selectedSlot || '-' },
-                { label: '⏱ Duration', value: `${svc?.duration} min` },
-                { label: '💰 Price', value: `Rs. ${(realPrice || 0).toLocaleString()}` },
+                { label: '⏱ Duration', value: `${svc?.duration || 30} min` },
+                { label: '💰 Total Amount', value: `£${realPrice}` },
               ].map(item => (
                 <View key={item.label} style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>{item.label}</Text>
@@ -252,18 +225,14 @@ export default function BookingScreen() {
               ))}
             </View>
 
-            <Text style={styles.stepTitle}>Payment Method</Text>
-            {['Pay Online', 'Cash on Visit'].map(m => (
-              <TouchableOpacity key={m} style={styles.payOption}>
-                <Text style={styles.payIcon}>{m === 'Pay Online' ? '💳' : '💵'}</Text>
+            <Text style={styles.stepTitle}>Payment Preference</Text>
+            {['Pay at Salon (Cash / Card)', 'Online Pre-payment'].map((m, idx) => (
+              <View key={m} style={[styles.payOption, idx === 0 && { borderColor: Colors.gold }]}>
+                <Text style={styles.payIcon}>{idx === 0 ? '💵' : '💳'}</Text>
                 <Text style={styles.payText}>{m}</Text>
-              </TouchableOpacity>
+                {idx === 0 && <Text style={{ color: Colors.gold, fontWeight: '800' }}>✓ Selected</Text>}
+              </View>
             ))}
-
-            <Text style={styles.noteLabel}>Additional Notes (Optional)</Text>
-            <View style={styles.noteInput}>
-              <Text style={{ color: notes ? Colors.text : Colors.textMuted }}>{notes || 'Any special instructions for your barber...'}</Text>
-            </View>
           </View>
         )}
 
@@ -277,7 +246,7 @@ export default function BookingScreen() {
           onPress={() => step < STEPS.length - 1 ? setStep(s => s + 1) : handleConfirm()}
           disabled={!canNext()}
         >
-          <Text style={styles.nextBtnText}>{submitting ? 'Booking...' : (step < STEPS.length - 1 ? 'Continue →' : '✅ Confirm Booking')}</Text>
+          <Text style={styles.nextBtnText}>{submitting ? 'Booking...' : (step < STEPS.length - 1 ? 'Continue →' : '✅ Confirm Booking (£' + realPrice + ')')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -290,6 +259,7 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.card, justifyContent: 'center', alignItems: 'center' },
   backText: { color: Colors.text, fontSize: 20 },
   title: { color: Colors.text, fontSize: 16, fontWeight: '700' },
+  subtitle: { color: Colors.gold, fontSize: 12, fontWeight: '600' },
   stepsRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
   stepItem: { alignItems: 'center', gap: 4 },
   stepCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.card, borderWidth: 2, borderColor: Colors.border, justifyContent: 'center', alignItems: 'center' },
@@ -310,31 +280,24 @@ const styles = StyleSheet.create({
   optionInfo: { flex: 1 },
   optionName: { color: Colors.text, fontSize: 14, fontWeight: '700' },
   optionSub: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
-  optionPrice: { color: Colors.gold, fontWeight: '700', fontSize: 14 },
+  optionPrice: { color: Colors.gold, fontWeight: '800', fontSize: 16 },
   checkIcon: { color: Colors.gold, fontSize: 18, fontWeight: '700', marginLeft: 4 },
-  barberOption: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1.5, borderColor: Colors.border },
-  disabledOption: { opacity: 0.5 },
-  statusChip: {},
-  statusText: { fontSize: 11, fontWeight: '600' },
-  dateCard: { width: 58, height: 72, borderRadius: Radius.sm, backgroundColor: Colors.card, borderWidth: 1.5, borderColor: Colors.border, justifyContent: 'center', alignItems: 'center', gap: 2 },
+  dateCard: { width: 62, height: 74, borderRadius: Radius.sm, backgroundColor: Colors.card, borderWidth: 1.5, borderColor: Colors.border, justifyContent: 'center', alignItems: 'center', gap: 2 },
   dateCardActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
   dayName: { color: Colors.textSecondary, fontSize: 11, fontWeight: '600' },
   dayNum: { color: Colors.text, fontSize: 20, fontWeight: '800' },
   todayLabel: { color: Colors.textMuted, fontSize: 9 },
   slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  slotChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.sm, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
+  slotChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: Radius.sm, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
   slotActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  slotBooked: { opacity: 0.35, borderColor: Colors.error },
   slotText: { color: Colors.text, fontSize: 13, fontWeight: '600' },
   summaryCard: { backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, gap: 10, marginBottom: Spacing.lg },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
   summaryLabel: { color: Colors.textSecondary, fontSize: 14 },
   summaryValue: { color: Colors.text, fontSize: 14, fontWeight: '700' },
   payOption: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.card, borderRadius: Radius.sm, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
-  payIcon: { fontSize: 24 },
-  payText: { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  noteLabel: { color: Colors.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', marginTop: Spacing.md, marginBottom: Spacing.sm },
-  noteInput: { backgroundColor: Colors.card, borderRadius: Radius.sm, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, minHeight: 80 },
+  payIcon: { fontSize: 22 },
+  payText: { color: Colors.text, fontSize: 14, fontWeight: '600', flex: 1 },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.border, padding: Spacing.lg, paddingBottom: 30 },
   nextBtn: { backgroundColor: Colors.gold, borderRadius: Radius.full, paddingVertical: 15, alignItems: 'center' },
   nextBtnDisabled: { opacity: 0.4 },

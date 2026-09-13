@@ -1,53 +1,37 @@
-# BarberPro Test Accounts List
+# Ehsan Salon UK - Test Accounts List
 
-All accounts use the same password for easy testing.
+All test accounts use the same password for convenience.
 
-**Password:** `password123`
-
----
-
-## ✂️ Barbers (10 Accounts)
-These accounts can be used to test the Barber Dashboard, manage schedules, and accept/reject requests.
-
-| Name | Email | Shop Location |
-| :--- | :--- | :--- |
-| Ali Raza | `ali@test.com` | DHA Phase 5, Lahore |
-| Hassan Shah | `hassan@test.com` | Gulberg III, Lahore |
-| Imran Khan | `imran@test.com` | Johar Town, Lahore |
-| Arsalan Khan | `arsalan@test.com` | Model Town, Lahore |
-| Zubair Ahmed | `zubair@test.com` | Wapda Town, Lahore |
-| Hamza Ali | `hamza@test.com` | Cavalry Ground, Lahore |
-| Bilal Sheikh | `bilal@test.com` | Bahria Town, Lahore |
-| Usman Butt | `usman@test.com` | Defence Raya, Lahore |
-| Kamran Akmal | `kamran@test.com` | Lake City, Lahore |
-| Saqlain Mushtaq | `saqlain@test.com` | Askari 10, Lahore |
+**Universal Password:** `password123`
 
 ---
 
-## 👤 Customers (15 Accounts)
-These accounts can be used to test the booking flow, searching for barbers, and viewing personal booking history.
+## 💈 Salon Admin Accounts (Ehsan Salon UK)
+These accounts access the **Admin Panel / Barber Dashboard** to manage salon status, accept/reject booking requests, track £ GBP earnings, set service prices, and manage schedules.
+
+| Name | Email | Salon Location | Role |
+| :--- | :--- | :--- | :--- |
+| **Ehsan Salon (Primary)** | `ehsan@salon.co.uk` | 142 Oxford Street, London, W1D 1LU, UK | Primary Salon Admin |
+| **Ehsan Salon Admin** | `barber@test.com` | 142 Oxford Street, London, W1D 1LU, UK | Salon Admin |
+| **Ehsan Salon Team** | `ali@test.com` | 142 Oxford Street, London, W1D 1LU, UK | Senior Stylist |
+
+---
+
+## 👤 Customer Accounts (Client App)
+These accounts access the **Customer Booking App** to view Ehsan Salon's menu in £ GBP, book appointments, and view booking status.
 
 | Name | Email | Type |
 | :--- | :--- | :--- |
-| Test Customer | `customer@test.com` | Primary Test Account |
-| Fahad Mustafa | `fahad@customer.com` | Standard Customer |
-| Danish Taimoor | `danish@customer.com` | Standard Customer |
-| Ahsan Khan | `ahsan@customer.com` | Standard Customer |
-| Humayun Saeed | `humayun@customer.com` | Standard Customer |
-| Fawad Khan | `fawad@customer.com` | Standard Customer |
-| Ahad Raza Mir | `ahad@customer.com` | Standard Customer |
-| Bilal Abbas | `bilal@customer.com` | Standard Customer |
-| Sheheryar Munawar | `sheheryar@customer.com` | Standard Customer |
-| Feroze Khan | `feroze@customer.com` | Standard Customer |
-| Muneeb Butt | `muneeb@customer.com` | Standard Customer |
-| Affan Waheed | `affan@customer.com` | Standard Customer |
-| Imran Ashraf | `imran@customer.com` | Standard Customer |
-| Zahid Ahmed | `zahid@customer.com` | Standard Customer |
-| Wahaj Ali | `wahaj@customer.com` | Standard Customer |
+| **Test Customer** | `customer@test.com` | Primary Test Client Account |
+| Oliver Smith | `oliver@ukmail.co.uk` | Standard Customer |
+| Jack Williams | `jack@ukmail.co.uk` | Standard Customer |
+| Harry Brown | `harry@ukmail.co.uk` | Standard Customer |
+| George Taylor | `george@ukmail.co.uk` | Standard Customer |
+| James Wilson | `james@ukmail.co.uk` | Standard Customer |
 
 ---
 
 ## 🛠️ Instructions
-1. Ensure the backend is running on `http://localhost:5005`.
-2. Open the app and go to the Login screen.
-3. Use any of the emails above with the password `password123`.
+1. Ensure backend is running (`node server.js` in `Backend/`).
+2. Login as **Salon Admin** (`ehsan@salon.co.uk` / `password123`) to view Admin Dashboard.
+3. Login as **Customer** (`customer@test.com` / `password123`) to test the single-salon booking flow for Ehsan Salon.

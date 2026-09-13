@@ -104,8 +104,8 @@ export default function RequestsScreen() {
                   </View>
                 </View>
                 <View style={styles.amountBox}>
-                  <Text style={styles.amount}>Rs. {req.amount?.toLocaleString()}</Text>
-                  <Text style={styles.amountLabel}>Cash</Text>
+                  <Text style={styles.amount}>£{req.amount?.toLocaleString()}</Text>
+                  <Text style={styles.amountLabel}>Pay at Salon</Text>
                 </View>
               </View>
 

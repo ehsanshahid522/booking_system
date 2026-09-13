@@ -7,14 +7,15 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import apiClient from '@/api/client';
+import StatusBadge from '@/components/StatusBadge';
 
 interface ServiceOption { _id: string; name: string; price: number; duration: number; icon: string; category: string; }
 interface BarberService { service: ServiceOption; customPrice: number; isActive: boolean; _id: string; }
-interface Booking { _id: string; customer: { name: string }; service: { name: string }; date: string; startTime: string; status: string; amount: number; }
+interface Booking { _id: string; customer: { name: string; phone?: string }; service: { name: string }; date: string; startTime: string; status: string; amount: number; }
 
 export default function BarberDashboard() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [myServices, setMyServices] = useState<BarberService[]>([]);
@@ -25,6 +26,7 @@ export default function BarberDashboard() {
   const [selectedService, setSelectedService] = useState<ServiceOption | null>(null);
   const [customPrice, setCustomPrice] = useState('');
   const [savingService, setSavingService] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -32,7 +34,7 @@ export default function BarberDashboard() {
     try {
       const [bookingsRes, profileRes, servicesRes] = await Promise.all([
         apiClient.get('/bookings/my'),
-        apiClient.get(`/barbers/${user?._id}`),
+        apiClient.get(`/barbers/primary`),
         apiClient.get('/services'),
       ]);
 
@@ -46,42 +48,56 @@ export default function BarberDashboard() {
       setGlobalServices(Array.isArray(gs) ? gs : []);
     } catch (e: any) {
       console.error('Dashboard fetch error:', e);
-      Alert.alert('Error', e.response?.data?.message || 'Could not fetch dashboard data');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?._id]);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const todayBookings = bookings.filter(b => b.date === today);
+  const todayBookings = bookings.filter(b => b.date && b.date.startsWith(today));
   const pending = bookings.filter(b => b.status === 'pending');
   const completed = todayBookings.filter(b => b.status === 'completed');
-  const earnedToday = completed.reduce((s, b) => s + b.amount, 0);
+  const earnedToday = completed.reduce((s, b) => s + (b.amount || 0), 0);
+
+  const handleStatusToggle = async (newStatus: 'available' | 'busy' | 'off_duty') => {
+    try {
+      setUpdatingStatus(true);
+      await apiClient.put('/barbers/status', { status: newStatus });
+      if (refreshUser) await refreshUser();
+      fetchData();
+      Alert.alert('Status Updated', `Salon is now ${newStatus.replace('_', ' ').toUpperCase()}`);
+    } catch (e: any) {
+      Alert.alert('Error', 'Could not update status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const handleAccept = async (id: string) => {
     try {
       await apiClient.put(`/bookings/${id}/status`, { status: 'confirmed' });
+      Alert.alert('Accepted', 'Booking confirmed!');
       fetchData();
     } catch { Alert.alert('Error', 'Could not accept booking'); }
   };
 
   const handleReject = async (id: string) => {
-    Alert.alert('Reject Booking', 'Are you sure?', [
+    Alert.alert('Decline Booking', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Reject', style: 'destructive', onPress: async () => {
+      { text: 'Decline', style: 'destructive', onPress: async () => {
         try {
           await apiClient.put(`/bookings/${id}/status`, { status: 'cancelled' });
           fetchData();
-        } catch { Alert.alert('Error', 'Could not reject booking'); }
+        } catch { Alert.alert('Error', 'Could not decline booking'); }
       }},
     ]);
   };
 
   const handleAddService = async () => {
     if (!selectedService || !customPrice) {
-      Alert.alert('Error', 'Please select a service and enter a price.');
+      Alert.alert('Error', 'Please select a service and enter a price in £.');
       return;
     }
     setSavingService(true);
@@ -91,9 +107,8 @@ export default function BarberDashboard() {
         customPrice: parseFloat(customPrice),
       });
 
-      // Update local state immediately for a snappy UI
       const newServiceEntry = {
-        _id: Math.random().toString(), // Temp ID until next full fetch
+        _id: Math.random().toString(),
         service: selectedService,
         customPrice: parseFloat(customPrice),
         isActive: true
@@ -101,12 +116,10 @@ export default function BarberDashboard() {
       
       setMyServices(prev => [...prev, newServiceEntry]);
       
-      Alert.alert('Success', `${selectedService.name} added to your services!`);
+      Alert.alert('Success', `${selectedService.name} added at £${customPrice}!`);
       setShowAddService(false);
       setSelectedService(null);
       setCustomPrice('');
-      
-      // Still call fetchData to ensure backend sync is perfect in background
       fetchData();
     } catch (e: any) {
       Alert.alert('Error', e.response?.data?.message || 'Failed to add service');
@@ -123,28 +136,54 @@ export default function BarberDashboard() {
     );
   }
 
+  const shopName = user?.shopName || 'Ehsan Salon';
+  const shopStatus = user?.status || 'available';
+
   return (
     <ScrollView
       style={styles.container}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={Colors.gold} />}
     >
-      {/* Header */}
+      {/* Admin Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Barber Panel 💈</Text>
-          <Text style={styles.name}>{user?.name}</Text>
-          {user?.shopName ? <Text style={styles.shopName}>📍 {user.shopName}</Text> : null}
+          <Text style={styles.greeting}>Salon Admin Panel 💈</Text>
+          <Text style={styles.name}>{shopName}</Text>
+          <Text style={styles.shopName}>📍 142 Oxford Street, London W1D 1LU, UK</Text>
         </View>
       </View>
 
-      {/* KPI Cards */}
+      {/* Live Salon Status Toggle Box */}
+      <View style={styles.statusToggleCard}>
+        <View style={styles.statusHeaderRow}>
+          <Text style={styles.statusTitle}>Salon Status</Text>
+          <StatusBadge status={shopStatus} />
+        </View>
+        <Text style={styles.statusSub}>Toggle your salon availability for client bookings:</Text>
+        <View style={styles.statusBtnGroup}>
+          {(['available', 'busy', 'off_duty'] as const).map(st => (
+            <TouchableOpacity
+              key={st}
+              style={[styles.statusBtn, shopStatus === st && styles.statusBtnActive]}
+              onPress={() => handleStatusToggle(st)}
+              disabled={updatingStatus}
+            >
+              <Text style={[styles.statusBtnText, shopStatus === st && styles.statusBtnTextActive]}>
+                {st === 'available' ? '● Open' : st === 'busy' ? '● Busy' : '● Closed'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* KPI Cards in £ GBP */}
       <View style={styles.kpiRow}>
         {[
           { label: 'Today Done', value: completed.length.toString(), icon: '✅', color: Colors.success },
           { label: 'Upcoming', value: todayBookings.filter(b => b.status === 'confirmed').length.toString(), icon: '⏳', color: Colors.info },
           { label: 'Requests', value: pending.length.toString(), icon: '📩', color: Colors.warning },
-          { label: 'Earned', value: `Rs.${earnedToday.toLocaleString()}`, icon: '💰', color: Colors.gold },
+          { label: 'Earned Today', value: `£${earnedToday.toLocaleString()}`, icon: '💰', color: Colors.gold },
         ].map(kpi => (
           <View key={kpi.label} style={styles.kpiCard}>
             <Text style={styles.kpiIcon}>{kpi.icon}</Text>
@@ -154,9 +193,9 @@ export default function BarberDashboard() {
         ))}
       </View>
 
-      {/* My Services */}
+      {/* Salon Services */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>My Services</Text>
+        <Text style={styles.sectionTitle}>Services & Pricing (£ GBP)</Text>
         <TouchableOpacity onPress={() => setShowAddService(true)}>
           <Text style={styles.addBtn}>+ Add Service</Text>
         </TouchableOpacity>
@@ -165,8 +204,8 @@ export default function BarberDashboard() {
       {myServices.length === 0 ? (
         <TouchableOpacity style={styles.emptyServiceCard} onPress={() => setShowAddService(true)}>
           <Text style={styles.emptyIcon}>✂️</Text>
-          <Text style={styles.emptyTitle}>No services yet</Text>
-          <Text style={styles.emptySubtitle}>Tap to add services you offer with your custom price</Text>
+          <Text style={styles.emptyTitle}>No custom services set</Text>
+          <Text style={styles.emptySubtitle}>Tap to add services and set custom UK £ prices</Text>
         </TouchableOpacity>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: Spacing.lg, gap: Spacing.sm }}>
@@ -174,13 +213,13 @@ export default function BarberDashboard() {
             <View key={s._id} style={styles.serviceChip}>
               <Text style={styles.serviceChipIcon}>{s.service?.icon || '✂️'}</Text>
               <Text style={styles.serviceChipName}>{s.service?.name}</Text>
-              <Text style={styles.serviceChipPrice}>Rs. {s.customPrice.toLocaleString()}</Text>
+              <Text style={styles.serviceChipPrice}>£{s.customPrice?.toLocaleString()}</Text>
             </View>
           ))}
         </ScrollView>
       )}
 
-      {/* Pending Requests */}
+      {/* Pending Booking Requests */}
       <View style={[styles.sectionHeader, { marginTop: Spacing.lg }]}>
         <Text style={styles.sectionTitle}>Pending Requests</Text>
         <TouchableOpacity onPress={() => router.push('/(barber)/requests' as any)}>
@@ -196,17 +235,20 @@ export default function BarberDashboard() {
         pending.slice(0, 3).map(req => (
           <View key={req._id} style={styles.requestCard}>
             <View style={styles.requestInfo}>
-              <Text style={styles.reqCustomer}>{req.customer?.name || 'Unknown Customer'}</Text>
-              <Text style={styles.reqService}>{req.service?.name || 'Unknown Service'}</Text>
-              <Text style={styles.reqDate}>📅 {req.date || 'No Date'} · {req.startTime || 'No Time'}</Text>
+              <Text style={styles.reqCustomer}>{req.customer?.name || 'Customer'}</Text>
+              <Text style={styles.reqService}>{req.service?.name || 'Service'}</Text>
+              <Text style={styles.reqDate}>📅 {req.date ? req.date.split('T')[0] : 'Today'} · {req.startTime || 'Slot'}</Text>
             </View>
-            <View style={styles.reqButtons}>
-              <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(req._id)}>
-                <Text style={styles.acceptText}>✓</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.rejectBtn} onPress={() => handleReject(req._id)}>
-                <Text style={styles.rejectText}>✕</Text>
-              </TouchableOpacity>
+            <View style={styles.reqRight}>
+              <Text style={styles.reqAmount}>£{req.amount || 25}</Text>
+              <View style={styles.reqButtons}>
+                <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(req._id)}>
+                  <Text style={styles.acceptText}>✓ Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.rejectBtn} onPress={() => handleReject(req._id)}>
+                  <Text style={styles.rejectText}>✕</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         ))
@@ -214,18 +256,18 @@ export default function BarberDashboard() {
 
       {/* Today's Schedule */}
       <View style={[styles.sectionHeader, { marginTop: Spacing.lg }]}>
-        <Text style={styles.sectionTitle}>Today&apos;s Schedule</Text>
+        <Text style={styles.sectionTitle}>Today&apos;s Appointments</Text>
         <TouchableOpacity onPress={() => router.push('/(barber)/schedule' as any)}>
-          <Text style={styles.seeAll}>See All</Text>
+          <Text style={styles.seeAll}>View Timeline</Text>
         </TouchableOpacity>
       </View>
 
       {todayBookings.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>No appointments today</Text>
+          <Text style={styles.emptyStateText}>No appointments scheduled for today</Text>
         </View>
       ) : (
-        todayBookings.slice(0, 3).map(appt => (
+        todayBookings.slice(0, 4).map(appt => (
           <View key={appt._id} style={styles.scheduleRow}>
             <View style={styles.timeBox}>
               <Text style={styles.timeText}>{appt.startTime}</Text>
@@ -233,11 +275,11 @@ export default function BarberDashboard() {
             <View style={styles.scheduleLine} />
             <View style={styles.scheduleCard}>
               <View style={styles.scheduleInfo}>
-                <Text style={styles.customerName}>{appt.customer?.name || 'Unknown Customer'}</Text>
-                <Text style={styles.serviceName}>{appt.service?.name || 'Unknown Service'}</Text>
+                <Text style={styles.customerName}>{appt.customer?.name || 'Client'}</Text>
+                <Text style={styles.serviceName}>{appt.service?.name || 'Cut & Style'}</Text>
               </View>
               <Text style={[styles.scheduleAmount, { color: appt.status === 'completed' ? Colors.success : Colors.gold }]}>
-                Rs. {appt.amount.toLocaleString()}
+                £{appt.amount}
               </Text>
             </View>
           </View>
@@ -251,7 +293,7 @@ export default function BarberDashboard() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add a Service</Text>
+              <Text style={styles.modalTitle}>Add Service to Menu</Text>
               <TouchableOpacity onPress={() => setShowAddService(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -262,7 +304,7 @@ export default function BarberDashboard() {
                 <Text style={styles.selectedServiceIcon}>{selectedService.icon}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.selectedServiceName}>{selectedService.name}</Text>
-                  <Text style={styles.selectedServiceMeta}>Global price: Rs. {selectedService.price} · {selectedService.duration} min</Text>
+                  <Text style={styles.selectedServiceMeta}>Standard price: £{selectedService.price} · {selectedService.duration} min</Text>
                 </View>
                 <TouchableOpacity onPress={() => setSelectedService(null)}>
                   <Text style={{ color: Colors.textMuted }}>✕</Text>
@@ -272,7 +314,7 @@ export default function BarberDashboard() {
               <FlatList
                 data={globalServices}
                 keyExtractor={item => item._id}
-                style={{ maxHeight: 200 }}
+                style={{ maxHeight: 220 }}
                 renderItem={({ item }) => (
                   <TouchableOpacity style={styles.serviceOption} onPress={() => setSelectedService(item)}>
                     <Text style={styles.serviceOptionIcon}>{item.icon}</Text>
@@ -280,7 +322,7 @@ export default function BarberDashboard() {
                       <Text style={styles.serviceOptionName}>{item.name}</Text>
                       <Text style={styles.serviceOptionMeta}>{item.category} · {item.duration} min</Text>
                     </View>
-                    <Text style={styles.serviceOptionPrice}>Rs. {item.price}</Text>
+                    <Text style={styles.serviceOptionPrice}>£{item.price}</Text>
                   </TouchableOpacity>
                 )}
               />
@@ -288,17 +330,17 @@ export default function BarberDashboard() {
 
             {selectedService && (
               <>
-                <Text style={styles.priceLabel}>Your Custom Price (Rs.)</Text>
+                <Text style={styles.priceLabel}>Your Salon Price (£ GBP)</Text>
                 <TextInput
                   style={styles.priceInput}
-                  placeholder="e.g. 800"
+                  placeholder="e.g. 25"
                   placeholderTextColor={Colors.textMuted}
                   keyboardType="numeric"
                   value={customPrice}
                   onChangeText={setCustomPrice}
                 />
                 <TouchableOpacity style={styles.saveBtn} onPress={handleAddService} disabled={savingService}>
-                  {savingService ? <ActivityIndicator color={Colors.background} /> : <Text style={styles.saveBtnText}>Save Service</Text>}
+                  {savingService ? <ActivityIndicator color={Colors.background} /> : <Text style={styles.saveBtnText}>Save Service to Menu</Text>}
                 </TouchableOpacity>
               </>
             )}
@@ -313,13 +355,25 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { paddingHorizontal: Spacing.lg, paddingTop: 56, paddingBottom: Spacing.md },
   greeting: { color: Colors.textSecondary, fontSize: 13 },
-  name: { color: Colors.text, fontSize: 22, fontWeight: '800', marginTop: 2 },
+  name: { color: Colors.text, fontSize: 24, fontWeight: '800', marginTop: 2 },
   shopName: { color: Colors.gold, fontSize: 13, marginTop: 4 },
+
+  statusToggleCard: { marginHorizontal: Spacing.lg, backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.lg, gap: 6 },
+  statusHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  statusTitle: { color: Colors.text, fontSize: 16, fontWeight: '700' },
+  statusSub: { color: Colors.textSecondary, fontSize: 12 },
+  statusBtnGroup: { flexDirection: 'row', gap: Spacing.xs, marginTop: 6 },
+  statusBtn: { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.sm, paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  statusBtnActive: { backgroundColor: Colors.gold + '22', borderColor: Colors.gold },
+  statusBtnText: { color: Colors.textMuted, fontSize: 12, fontWeight: '700' },
+  statusBtnTextActive: { color: Colors.gold },
+
   kpiRow: { flexDirection: 'row', paddingHorizontal: Spacing.lg, gap: Spacing.sm, marginBottom: Spacing.lg },
   kpiCard: { flex: 1, backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center', gap: 3, borderWidth: 1, borderColor: Colors.border },
   kpiIcon: { fontSize: 18 },
   kpiValue: { fontSize: 13, fontWeight: '800' },
   kpiLabel: { color: Colors.textMuted, fontSize: 9, textAlign: 'center' },
+
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm },
   sectionTitle: { color: Colors.text, fontSize: 17, fontWeight: '800' },
   seeAll: { color: Colors.gold, fontSize: 13, fontWeight: '600' },
@@ -331,29 +385,33 @@ const styles = StyleSheet.create({
   serviceChip: { backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', minWidth: 100, gap: 4, marginBottom: 4 },
   serviceChipIcon: { fontSize: 24 },
   serviceChipName: { color: Colors.text, fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  serviceChipPrice: { color: Colors.gold, fontSize: 11, fontWeight: '700' },
+  serviceChipPrice: { color: Colors.gold, fontSize: 13, fontWeight: '800' },
   emptyState: { marginHorizontal: Spacing.lg, padding: Spacing.lg, alignItems: 'center' },
   emptyStateText: { color: Colors.textMuted, fontSize: 14 },
-  requestCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, marginHorizontal: Spacing.lg, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
+
+  requestCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, marginHorizontal: Spacing.lg, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
   requestInfo: { flex: 1, gap: 2 },
   reqCustomer: { color: Colors.text, fontSize: 14, fontWeight: '700' },
   reqService: { color: Colors.textSecondary, fontSize: 13 },
   reqDate: { color: Colors.textMuted, fontSize: 12 },
+  reqRight: { alignItems: 'flex-end', gap: 6 },
+  reqAmount: { color: Colors.gold, fontSize: 15, fontWeight: '800' },
   reqButtons: { flexDirection: 'row', gap: 6 },
-  acceptBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.success + '22', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: Colors.success },
-  acceptText: { color: Colors.success, fontWeight: '800', fontSize: 14 },
-  rejectBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.error + '22', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: Colors.error },
-  rejectText: { color: Colors.error, fontWeight: '800', fontSize: 14 },
+  acceptBtn: { backgroundColor: Colors.success + '22', borderRadius: Radius.full, paddingVertical: 5, paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.success },
+  acceptText: { color: Colors.success, fontWeight: '800', fontSize: 12 },
+  rejectBtn: { backgroundColor: Colors.error + '22', borderRadius: Radius.full, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: Colors.error },
+  rejectText: { color: Colors.error, fontWeight: '800', fontSize: 12 },
+
   scheduleRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm },
-  timeBox: { width: 60, alignItems: 'flex-end', marginRight: 8 },
+  timeBox: { width: 65, alignItems: 'flex-end', marginRight: 8 },
   timeText: { color: Colors.gold, fontSize: 12, fontWeight: '700' },
   scheduleLine: { width: 2, height: 40, backgroundColor: Colors.gold + '44', marginRight: 8 },
   scheduleCard: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.card, borderRadius: Radius.sm, padding: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
   scheduleInfo: { flex: 1 },
   customerName: { color: Colors.text, fontSize: 13, fontWeight: '700' },
   serviceName: { color: Colors.textSecondary, fontSize: 12 },
-  scheduleAmount: { fontWeight: '700', fontSize: 12 },
-  // Modal styles
+  scheduleAmount: { fontWeight: '800', fontSize: 13 },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.lg, paddingBottom: 40, maxHeight: '80%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
@@ -363,7 +421,7 @@ const styles = StyleSheet.create({
   serviceOptionIcon: { fontSize: 24, width: 36, textAlign: 'center' },
   serviceOptionName: { color: Colors.text, fontSize: 15, fontWeight: '600' },
   serviceOptionMeta: { color: Colors.textMuted, fontSize: 12 },
-  serviceOptionPrice: { color: Colors.gold, fontWeight: '700' },
+  serviceOptionPrice: { color: Colors.gold, fontWeight: '800' },
   selectedServiceCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.gold + '66', marginBottom: Spacing.md },
   selectedServiceIcon: { fontSize: 28 },
   selectedServiceName: { color: Colors.text, fontSize: 16, fontWeight: '700' },

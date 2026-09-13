@@ -25,7 +25,7 @@ export default function ServiceCard({ name, price, duration, icon, category, onP
       <Text style={[styles.name, selected && styles.selectedText]}>{name}</Text>
       <Text style={styles.category}>{category}</Text>
       <View style={styles.row}>
-        <Text style={[styles.price, selected && { color: Colors.goldLight }]}>Rs. {price.toLocaleString()}</Text>
+        <Text style={[styles.price, selected && { color: Colors.goldLight }]}>£{price.toLocaleString()}</Text>
         <Text style={styles.duration}>⏱ {duration}m</Text>
       </View>
     </TouchableOpacity>

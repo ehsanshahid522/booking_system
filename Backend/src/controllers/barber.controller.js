@@ -14,6 +14,21 @@ export const getBarbers = asyncHandler(async (req, res) => {
   new ApiResponse(res, 200, 'Barbers fetched successfully', { barbers });
 });
 
+// @desc    Get primary barber / salon (Ehsan Salon)
+// @route   GET /api/barbers/primary
+// @access  Public
+export const getPrimaryBarber = asyncHandler(async (req, res) => {
+  const barber = await User.findOne({ role: 'barber', isActive: true })
+    .select('-password')
+    .populate('services.service', 'name price duration icon category');
+
+  if (!barber) {
+    throw new ApiError(404, 'Barber salon not found');
+  }
+
+  new ApiResponse(res, 200, 'Primary barber fetched successfully', { barber });
+});
+
 // @desc    Get single barber by ID
 // @route   GET /api/barbers/:id
 // @access  Public

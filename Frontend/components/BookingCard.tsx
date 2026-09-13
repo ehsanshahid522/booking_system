@@ -19,7 +19,7 @@ interface BookingCardProps {
 }
 
 export default function BookingCard({ barberName, barberInitials, barberColor, serviceName, date, startTime, status, amount, onPress }: BookingCardProps) {
-  const formattedDate = new Date(date).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
+  const formattedDate = new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
@@ -30,7 +30,7 @@ export default function BookingCard({ barberName, barberInitials, barberColor, s
           <Text style={styles.service}>{serviceName}</Text>
         </View>
         <View style={styles.rightCol}>
-          <Text style={styles.amount}>Rs. {amount.toLocaleString()}</Text>
+          <Text style={styles.amount}>£{amount.toLocaleString()}</Text>
           <StatusBadge status={status} small />
         </View>
       </View>
