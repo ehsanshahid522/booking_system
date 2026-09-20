@@ -37,7 +37,7 @@ export default function SignupScreen() {
       return;
     }
     setLoading(true);
-    const ok = await signup(name, email, password, role, phone);
+    await signup(name, email, password, role, phone);
     setLoading(false);
   }
 

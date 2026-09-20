@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, KeyboardAvoidingView, Platform, Alert,
+  TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import Avatar from '@/components/Avatar';
+import ChatBubble from '@/components/ChatBubble';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 const CHAT_CONVERSATIONS = [
   { id: 'c1', otherUser: { name: 'Ali Raza', initials: 'AR', color: '#6366F1' }, bookingRef: 'BK-772', lastMessage: 'See you then!', lastTime: 'Yesterday', unreadCount: 0 },
@@ -12,9 +13,6 @@ const CHAT_MESSAGES = [
   { id: 'm1', senderId: 'c1', text: 'Hi Fahad, your booking is confirmed.', time: 'Yesterday', isRead: true },
   { id: 'm2', senderId: 'u1', text: 'Great, see you then!', time: 'Yesterday', isRead: true },
 ];
-import Avatar from '@/components/Avatar';
-import ChatBubble from '@/components/ChatBubble';
-
 const QUICK_REPLIES = ["I'm on my way", "Please confirm", "Running 10 min late", "See you soon"];
 
 type ChatView = 'list' | 'chat';

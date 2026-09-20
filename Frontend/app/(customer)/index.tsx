@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Dimensions, ActivityIndicator, Linking
+  Dimensions, ActivityIndicator, Linking
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '@/context/AuthContext';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import apiClient from '@/api/client';
 import StatusBadge from '@/components/StatusBadge';
@@ -14,7 +13,6 @@ const CATEGORIES = ['All', 'Hair', 'Beard', 'Wellness', 'Combo'];
 
 export default function CustomerHome() {
   const router = useRouter();
-  const { user } = useAuth();
   const [selectedCat, setSelectedCat] = useState('All');
   const [primaryBarber, setPrimaryBarber] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
@@ -44,7 +42,6 @@ export default function CustomerHome() {
     }
   }
 
-  const firstName = user?.name?.split(' ')[0] || 'Guest';
   const safeServices = Array.isArray(services) ? services : [];
 
   const filteredServices = selectedCat === 'All'

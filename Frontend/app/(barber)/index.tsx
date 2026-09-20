@@ -68,7 +68,7 @@ export default function BarberDashboard() {
       if (refreshUser) await refreshUser();
       fetchData();
       Alert.alert('Status Updated', `Salon is now ${newStatus.replace('_', ' ').toUpperCase()}`);
-    } catch (e: any) {
+    } catch {
       Alert.alert('Error', 'Could not update status');
     } finally {
       setUpdatingStatus(false);

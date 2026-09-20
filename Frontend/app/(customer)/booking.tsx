@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import apiClient from '@/api/client';
-import Avatar from '@/components/Avatar';
 
 const TIME_SLOTS = ['09:00 AM', '10:00 AM', '11:00 AM', '11:30 AM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM'];
 const STEPS = ['Service', 'Date & Time', 'Confirm'];
@@ -233,6 +232,17 @@ export default function BookingScreen() {
                 {idx === 0 && <Text style={{ color: Colors.gold, fontWeight: '800' }}>✓ Selected</Text>}
               </View>
             ))}
+
+            <Text style={styles.stepTitle}>Special Instructions</Text>
+            <TextInput
+              style={styles.notesInput}
+              placeholder="Any requests for your barber? (optional)"
+              placeholderTextColor={Colors.textMuted}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              maxLength={300}
+            />
           </View>
         )}
 
@@ -298,6 +308,7 @@ const styles = StyleSheet.create({
   payOption: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.card, borderRadius: Radius.sm, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
   payIcon: { fontSize: 22 },
   payText: { color: Colors.text, fontSize: 14, fontWeight: '600', flex: 1 },
+  notesInput: { minHeight: 84, backgroundColor: Colors.card, borderRadius: Radius.sm, borderWidth: 1, borderColor: Colors.border, color: Colors.text, padding: Spacing.md, textAlignVertical: 'top', fontSize: 14 },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.border, padding: Spacing.lg, paddingBottom: 30 },
   nextBtn: { backgroundColor: Colors.gold, borderRadius: Radius.full, paddingVertical: 15, alignItems: 'center' },
   nextBtnDisabled: { opacity: 0.4 },

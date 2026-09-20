@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
+import NotificationItem from '@/components/NotificationItem';
+
 const NOTIFICATIONS = [
   { id: '1', title: 'Booking Confirmed!', body: 'Your appointment with Ali Raza has been accepted.', time: '2h ago', icon: '✅', isRead: false, type: 'status' },
   { id: '2', title: 'Special Offer', body: 'Get 20% off on your next beard trim.', time: '5h ago', icon: '🔥', isRead: true, type: 'promo' },
 ];
-import NotificationItem from '@/components/NotificationItem';
 
 export default function NotificationsScreen() {
   const [notifs, setNotifs] = useState(NOTIFICATIONS);

@@ -4,14 +4,8 @@ import {
   Alert, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth, UserRole } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
-
-const ROLES: { label: string; value: UserRole; icon: string; desc: string }[] = [
-  { label: 'Customer', value: 'customer', icon: '👤', desc: 'Book appointments' },
-  { label: 'Barber', value: 'barber', icon: '✂️', desc: 'Manage schedule' },
-  { label: 'Admin', value: 'admin', icon: '🛡️', desc: 'Full control' },
-];
 
 export default function LoginScreen() {
   const router = useRouter();

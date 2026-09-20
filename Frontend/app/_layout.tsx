@@ -61,7 +61,7 @@ function RootLayoutNav() {
       }
       // Add more role-based redirection logic here if needed
     }
-  }, [user, isLoading, segments]);
+  }, [user, isLoading, router, segments]);
 
   if (isLoading) {
     return (

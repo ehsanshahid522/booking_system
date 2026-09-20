@@ -29,7 +29,7 @@ export default function BookingDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [bookingId]);
+  }, [bookingId, router]);
 
   useEffect(() => {
     if (bookingId) fetchBooking();

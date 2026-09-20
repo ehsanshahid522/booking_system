@@ -6,7 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const SLIDES = [
   {
