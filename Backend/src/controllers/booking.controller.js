@@ -1,5 +1,6 @@
 import Booking from '../models/Booking.js';
 import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 import Service from '../models/Service.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
@@ -65,6 +66,15 @@ export const createBooking = asyncHandler(async (req, res) => {
   await booking.populate('barber', 'name avatar');
   await booking.populate('service', 'name price');
 
+  const customerName = req.user?.name || 'A customer';
+  await Notification.create({
+    user: barberId,
+    title: 'New booking request',
+    body: `${customerName} requested a ${service.name} appointment on ${booking.date}.`,
+    type: 'booking',
+    actionUrl: `/bookings/${booking._id}`
+  });
+
   // Notify barber via Socket.io
   const io = req.app.get('io');
   if (io) {
@@ -115,6 +125,26 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
   booking.status = status;
   await booking.save();
 
+  const customer = await User.findById(booking.customer);
+  const service = await Service.findById(booking.service);
+  const statusMessage = {
+    confirmed: 'accepted',
+    cancelled: 'cancelled',
+    completed: 'completed',
+    no_show: 'marked as no-show',
+    manual_offline: 'updated manually'
+  }[status] || 'updated';
+
+  if (customer) {
+    await Notification.create({
+      user: customer._id,
+      title: 'Booking update',
+      body: `Your ${service?.name || 'service'} appointment was ${statusMessage}.`,
+      type: 'booking',
+      actionUrl: `/bookings/${booking._id}`
+    });
+  }
+
   // Notify customer via Socket.io when barber accepts/rejects
   const io = req.app.get('io');
   if (io && booking.customer) {
@@ -125,4 +155,25 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
   }
 
   new ApiResponse(res, 200, 'Booking status updated', { booking });
+});
+
+// @desc    Mark booking as paid
+// @route   POST /api/bookings/:id/pay
+// @access  Private (Customer)
+export const payBooking = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+
+  if (!booking) {
+    throw new ApiError(404, 'Booking not found');
+  }
+
+  if (booking.customer.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Not authorized to pay for this booking');
+  }
+
+  booking.paymentStatus = 'paid';
+  booking.status = booking.status === 'pending' ? 'confirmed' : booking.status;
+  await booking.save();
+
+  new ApiResponse(res, 200, 'Payment successful', { booking });
 });

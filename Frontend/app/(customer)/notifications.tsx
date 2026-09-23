@@ -1,19 +1,67 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
 import NotificationItem from '@/components/NotificationItem';
+import apiClient from '@/api/client';
 
-const NOTIFICATIONS = [
-  { id: '1', title: 'Booking Confirmed!', body: 'Your appointment with Ali Raza has been accepted.', time: '2h ago', icon: '✅', isRead: false, type: 'status' },
-  { id: '2', title: 'Special Offer', body: 'Get 20% off on your next beard trim.', time: '5h ago', icon: '🔥', isRead: true, type: 'promo' },
-];
+interface NotificationItemData {
+  _id: string;
+  title: string;
+  body: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+function relativeTime(dateString: string) {
+  const diff = Date.now() - new Date(dateString).getTime();
+  const minutes = Math.max(1, Math.round(diff / 60000));
+
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
 
 export default function NotificationsScreen() {
-  const [notifs, setNotifs] = useState(NOTIFICATIONS);
+  const [notifs, setNotifs] = useState<NotificationItemData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await apiClient.get('/notifications');
+      setNotifs(res.data?.data?.notifications || []);
+    } catch (error: any) {
+      console.error('Notifications fetch error:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Could not load notifications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
   const unreadCount = notifs.filter(n => !n.isRead).length;
 
-  function markAllRead() {
-    setNotifs(n => n.map(item => ({ ...item, isRead: true })));
+  async function markAllRead() {
+    try {
+      await apiClient.put('/notifications/read-all');
+      setNotifs(prev => prev.map(item => ({ ...item, isRead: true })));
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Could not mark notifications as read');
+    }
+  }
+
+  async function handleNotificationPress(id: string) {
+    try {
+      await apiClient.put(`/notifications/${id}/read`);
+      setNotifs(prev => prev.map(item => item._id === id ? { ...item, isRead: true } : item));
+    } catch (error: any) {
+      console.error('Mark notification read error:', error);
+    }
   }
 
   return (
@@ -30,15 +78,32 @@ export default function NotificationsScreen() {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-        {notifs.map(n => (
-          <NotificationItem
-            key={n.id}
-            {...n}
-            onPress={() => setNotifs(prev => prev.map(item => item.id === n.id ? { ...item, isRead: true } : item))}
-          />
-        ))}
-      </ScrollView>
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={Colors.gold} />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+          {notifs.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>🔔</Text>
+              <Text style={styles.emptyText}>No notifications yet</Text>
+            </View>
+          ) : (
+            notifs.map(n => (
+              <NotificationItem
+                key={n._id}
+                title={n.title}
+                body={n.body}
+                time={relativeTime(n.createdAt)}
+                type={n.type}
+                isRead={n.isRead}
+                onPress={() => handleNotificationPress(n._id)}
+              />
+            ))
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -50,4 +115,8 @@ const styles = StyleSheet.create({
   subtitle: { color: Colors.gold, fontSize: 13, marginTop: 2 },
   markBtn: { backgroundColor: Colors.card, borderRadius: Radius.sm, paddingVertical: 7, paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.border, marginTop: 4 },
   markText: { color: Colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyState: { alignItems: 'center', paddingTop: 80 },
+  emptyIcon: { fontSize: 42, marginBottom: Spacing.sm },
+  emptyText: { color: Colors.textSecondary, fontSize: 14 },
 });

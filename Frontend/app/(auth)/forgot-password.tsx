@@ -1,15 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Radius } from '@/constants/Colors';
+import apiClient from '@/api/client';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const [email, setEmail] = React.useState('');
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  function handleReset() {
-    if (!email.trim()) { Alert.alert('Enter Email', 'Please enter your email address.'); return; }
-    Alert.alert('✅ Reset Link Sent', `A password reset link has been sent to ${email}`, [{ text: 'Back to Login', onPress: () => router.replace('/(auth)/login' as any) }]);
+  async function handleReset() {
+    if (!email.trim()) {
+      Alert.alert('Enter Email', 'Please enter your email address.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await apiClient.post('/auth/forgot-password', { email: email.trim() });
+      Alert.alert('✅ Reset Link Sent', `Password reset instructions have been sent to ${email.trim()}`, [
+        { text: 'Back to Login', onPress: () => router.replace('/(auth)/login' as any) }
+      ]);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Could not send reset instructions');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -26,8 +42,8 @@ export default function ForgotPasswordScreen() {
         <View style={styles.form}>
           <Text style={styles.label}>Email Address</Text>
           <TextInput style={styles.input} placeholder="Enter your email" placeholderTextColor={Colors.textMuted} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-          <TouchableOpacity style={styles.btn} onPress={handleReset} activeOpacity={0.85}>
-            <Text style={styles.btnText}>Send Reset Link</Text>
+          <TouchableOpacity style={styles.btn} onPress={handleReset} activeOpacity={0.85} disabled={loading}>
+            <Text style={styles.btnText}>{loading ? 'Sending...' : 'Send Reset Link'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

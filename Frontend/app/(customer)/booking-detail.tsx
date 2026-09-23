@@ -114,9 +114,9 @@ export default function BookingDetailScreen() {
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Payment</Text>
           {[
-            { label: 'Amount', value: `Rs. ${booking.amount?.toLocaleString()}` },
+            { label: 'Amount', value: `£${booking.amount?.toLocaleString()}` },
             { label: 'Method', value: 'Cash at Shop' },
-            { label: 'Status', value: booking.status === 'completed' ? 'Paid' : 'Unpaid' },
+            { label: 'Status', value: booking.paymentStatus === 'paid' || booking.status === 'completed' ? 'Paid' : 'Unpaid' },
           ].map(item => (
             <View key={item.label} style={styles.detailRow}>
               <Text style={styles.detailLabel}>{item.label}</Text>
@@ -135,6 +135,23 @@ export default function BookingDetailScreen() {
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {(booking.paymentStatus !== 'paid' && booking.status !== 'completed') && (
+          <TouchableOpacity
+            style={styles.payBtn}
+            onPress={async () => {
+              try {
+                await apiClient.post(`/bookings/${bookingId}/pay`);
+                Alert.alert('Payment successful', 'Your booking is now paid.');
+                fetchBooking();
+              } catch (error: any) {
+                Alert.alert('Payment failed', error.response?.data?.message || 'Could not complete payment');
+              }
+            }}
+          >
+            <Text style={styles.payBtnText}>Pay Now</Text>
+          </TouchableOpacity>
         )}
       </ScrollView>
     </View>
@@ -163,4 +180,6 @@ const styles = StyleSheet.create({
   chatBtnText: { color: Colors.black, fontWeight: '800', fontSize: 14 },
   cancelBtn: { flex: 1, borderRadius: Radius.full, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: Colors.error + '88', backgroundColor: Colors.error + '18' },
   cancelBtnText: { color: Colors.error, fontWeight: '700', fontSize: 14 },
+  payBtn: { backgroundColor: Colors.success + '22', borderWidth: 1, borderColor: Colors.success + '55', borderRadius: Radius.full, paddingVertical: 14, alignItems: 'center', marginTop: Spacing.sm },
+  payBtnText: { color: Colors.success, fontWeight: '800', fontSize: 15 },
 });

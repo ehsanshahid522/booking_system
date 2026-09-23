@@ -1,14 +1,13 @@
 import http from 'http';
 import dotenv from 'dotenv';
 import app from './src/app.js';
-import connectDB from './src/config/db.js';
 import { Server } from 'socket.io';
 import { setupSocket } from './src/socket/socket.js';
+import connectDB from './src/config/db.js';
 
 dotenv.config();
 
-// Connect to database
-connectDB();
+await connectDB();
 
 const server = http.createServer(app);
 

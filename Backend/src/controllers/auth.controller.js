@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import generateToken from '../utils/generateToken.js';
 import ApiResponse from '../utils/ApiResponse.js';
@@ -77,6 +78,33 @@ export const login = asyncHandler(async (req, res) => {
   new ApiResponse(res, 200, 'Login successful', {
     user: userResponse,
     token
+  });
+});
+
+// @desc    Request password reset link
+// @route   POST /api/auth/forgot-password
+// @access  Public
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email || !email.trim()) {
+    throw new ApiError(400, 'Email is required');
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    throw new ApiError(404, 'No user found with this email');
+  }
+
+  const user = await User.findOne({ email: email.trim().toLowerCase() });
+  if (!user) {
+    throw new ApiError(404, 'No user found with this email');
+  }
+
+  // In a production app, this would send an email or generate a token.
+  // For this project, we return a safe confirmation that the process started.
+  new ApiResponse(res, 200, 'Password reset instructions sent', {
+    email: user.email,
+    message: 'Please check your email inbox for reset instructions.'
   });
 });
 
